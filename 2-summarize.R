@@ -30,7 +30,10 @@ rawdata$DATETIME <- ymd_hms(paste(rawdata$DATE, rawdata$TIME))
 
 # Assign a different sample number to each sample group (we know we're on a new group when MPVPosition changes)
 printlog("Assigning sample numbers...")
-rawdata$samplenum <- with(rawdata, cumsum(c(TRUE, !MPVPosition[-length(MPVPosition)] == MPVPosition[-1])))
+oldsampleflag <- with(rawdata, c(FALSE, 
+                                  MPVPosition[-length(MPVPosition)] == MPVPosition[-1] &
+                                    trt[-length(trt)] == trt[-1]))
+rawdata$samplenum <- cumsum(!oldsampleflag)
 
 printlog("Computing CO2 and CH4 models...")
 mods <- rawdata %>%
@@ -73,6 +76,15 @@ summarydata <- merge(summarydata, valvemap)
 summarydata$Source <- "Core"
 summarydata$Source[summarydata$DWP == "ambient"] <- "Ambient"
 summarydata$Source[summarydata$DWP == "CH4 blank"] <- "Blank"
+
+# Load field data to get depth information
+printlog("Loading field data and merging...")
+fielddata <- read_csv("data/DWP Core field data.csv")
+fielddata$Notes <- fielddata$SampleDate <- fielddata$SamplePoint <- NULL
+summarydata <- merge(summarydata, fielddata)
+
+printlog("Computing min depth...")
+summarydata$MinDepth_cm <- as.numeric(str_extract(summarydata$Depth_cm, "^[0-9]*"))
 
 printlog("Computing elapsed times...")
 summarydata <- summarydata %>% 
