@@ -1,0 +1,17 @@
+# R
+.Rproj.user
+.Rhistory
+.RData
+
+# OS-specific
+.DS_Store
+
+# Project-specific exclusions
+preliminaries/
+
+# Large data sets
+*.dat.gz
+
+# Script outputs
+outputs/
+
