@@ -1,4 +1,4 @@
-**Experiment 1. Influence of variable saturation conditions on methane transmission and oxidation through a soil column; identification of critical reaction zones.**
+#Experiment 1. Influence of variable saturation conditions on methane transmission and oxidation through a soil column; identification of critical reaction zones.**
 
 When CH4 is generated in a soil, at locally anoxic sites, the percolation of the gas through the soil may encounter conditions where the gas is re-oxidized to CO2. This oxidation results in two mechanistic processes being unaccounted for, conceptually: the CH4 production processes may be underreported, and the biological oxidation of C substrates may be over-estimated. Thus, clarifying and accounting for this process in a soil column is necessary as a first step to accurately representing GHG production and emission from soils. 
 
@@ -10,13 +10,13 @@ Analyses at the destructive sampling events may include CT for characterization 
 
 The other vertical section of the core will be sliced into depth sections that will be homogenized and analyzed using nanoDESI and liquid chromatography-mass spectrometry (LCMS) to more specifically characterize the nature of the C in each layer, and associated with the mineral components of the soils. Van Krevelen diagrams correlate chemical traits from all of the C molecules identified spectroscopically, and can be used to develop profiles of the types of organic molecules in the samples. Shifts in biomolecule distribution across depths and core types will provide information about the forms in which C occurs in soil, at both the different soluble phases, and at the mineral interfaces interrogated by nanoDESI, and may suggest hypotheses regarding the history of biological activity in those samples. This homogenized soil will also be diverted to subsequent small-scale batch incubations in which the further losses of freshly added 13C as GHGs are accounted for in a system with no soil physical structure. Microbial community DNA will be extracted from both the homogenized sample and from excised volumes of soil sampled from the non-homogenized cores. The contrast between the structure and diversity of the microbial community from the intact volume, and that of the homogenized soil will be used to develop new hypotheses about the distribution of microbial diversity in a three-dimensional system.
 
-Phase 1. Soil conditioning
+*Phase 1. Soil conditioning*
 
-Phase 2. Pre-methane fluxes on saturated cores
+*Phase 2. Pre-methane fluxes on saturated cores*
 
 1.	Measure CH4/CO2 fluxes continuously for 48 h
 
-Phase 3. Methane spike
+*Phase 3. Methane spike*
 
 1.	 Inject 6 ml CH4 to the base of every core (see chart) while hooked up to the Picarro. Note the injection time.
 
@@ -26,7 +26,7 @@ Phase 3. Methane spike
 
 4.	Pore water sampling – collect all pore water from retrievable pore-size domains (at least free-drain,  and fine).
 
-Phase 3. Injection 2
+*Phase 3. Injection 2*
 
 1.	Saturate the cores
 
@@ -40,7 +40,7 @@ Phase 3. Injection 2
 
 6.	Pore water sampling – collect all pore water for retrievable pore-size domains (at least free-drain,  and fine).
 
-Phase 4. Injection 3
+*Phase 4. Injection 3*
 
 1.	Saturate the cores
 
@@ -54,7 +54,7 @@ Phase 4. Injection 3
 
 6.	Pore water sampling – collect all pore water for retrievable pore-size domains (at least free-drain,  and fine).
 
-Phase 7. Core breakdown
+*Phase 7. Core breakdown*
 
 1.	Split cores open, down vertical midline.
 
@@ -64,7 +64,7 @@ Phase 7. Core breakdown
 
 4.	The second side of the core will be used as a source of 0-5 interval samples that will be homogenized and re-incubated as “batch” samples, for 2 weeks (measure CH4/CO2). 
 
-Phase 8. Batch incubation
+*Phase 8. Batch incubation*
 
 1.	Incubate samples under same temperature conditions, measure CH4/CO2 daily (?). 
 
