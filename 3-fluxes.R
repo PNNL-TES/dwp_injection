@@ -24,14 +24,14 @@ print(str(summarydata))
 
 printlog("Reading and merging headspace data...")
 hs <- read_csv("data/DWP2013 headspace_cm.csv")
-summarydata <- merge(summarydata, hs)
+summarydata <- merge(summarydata, hs, all.x=TRUE)
 print_dims(summarydata)
 
 printlog("Filtering data...")
 fluxdata <- summarydata %>%
   filter(Trt == "injection data", Source == "Core") %>%
   select(DWP_core, Rep, samplenum, m_CO2, m_CH4, ELAPSED_TIME, 
-         Site, MinDepth_cm, CoreMassPostInjection_g, headspace_in_core_cm)
+         Site, Depth_cm, MinDepth_cm, CoreMassPostInjection_g, headspace_in_core_cm)
 
 # Flux rates are ppm/s (CO2) or ppb/s (CH4) in `summarydata`
 # We want to convert these to mg C/g soil/s
@@ -79,31 +79,48 @@ fluxdata <- fluxdata[complete.cases(fluxdata),]
 # Each core had 6 ml CH4 injected = 0.006 L / 22.413 L/mol = 0.0002677017802 mol x 12 gC/mol = 3.21 mg C
 
 
-stop('ok')
+printlog("Computing cumulative C emission...")
+fluxdata <- fluxdata %>%
+  group_by(Rep, DWP_core) %>%
+  arrange(ELAPSED_TIME) %>%
+  mutate(CO2_flux_mgC = CO2_flux_mgC_s * (ELAPSED_TIME - lag(ELAPSED_TIME)),
+         cumCO2_flux_mgC = c(0, cumsum(CO2_flux_mgC[!is.na(CO2_flux_mgC)])),
+         CH4_flux_mgC = CH4_flux_mgC_s * (ELAPSED_TIME - lag(ELAPSED_TIME)),
+         cumCH4_flux_mgC = c(0, cumsum(CH4_flux_mgC[!is.na(CH4_flux_mgC)])))
 
-meandata$DWP_core <- as.numeric(meandata$DWP_core)
+fluxdata_labels <- fluxdata %>%
+  group_by(Rep, DWP_core, Depth_cm) %>%
+  arrange(ELAPSED_TIME) %>%
+  summarise(ELAPSED_TIME = last(ELAPSED_TIME),
+            cumCO2_flux_mgC = last(cumCO2_flux_mgC),
+            cumCH4_flux_mgC = last(cumCH4_flux_mgC))
 
-md_long <- melt(meandata, id.vars=c("Trt", "Source", "DWP_core", "Depth_cm", "CoreMassPostInjection_g"))
+printlog("Plotting...")
+fluxdata$Depth_cm <- factor(fluxdata$Depth_cm, levels=c("0-30", "30-60", "60-90", "90-120", "120-150", "150-180", "180-210", "210-240"))
+
+p <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, cumCO2_flux_mgC, color=Depth_cm, group=DWP_core))
+p <- p + geom_line() + facet_wrap(~Depth_cm)
+p <- p + xlab("Elapsed time (hours)")
+p <- p + geom_text(data=fluxdata_labels, aes(label=DWP_core), vjust=-0.5, size=3, show_guide=FALSE)
+print(p)
+save_plot("cumulative_CO2")
+
+p <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, cumCH4_flux_mgC, color=Depth_cm, group=DWP_core))
+p <- p + geom_line() + facet_wrap(~Depth_cm)
+p <- p + xlab("Elapsed time (hours)")
+p <- p + geom_text(data=fluxdata_labels, aes(label=DWP_core), vjust=-0.5, size=3, show_guide=FALSE)
+print(p)
+save_plot("cumulative_CH4")
+
+p <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, cumCO2_flux_mgC + cumCH4_flux_mgC, color=Depth_cm, group=DWP_core))
+p <- p + geom_line() + facet_wrap(~Depth_cm)
+p <- p + xlab("Elapsed time (hours)")
+p <- p + geom_text(data=fluxdata_labels, aes(label=DWP_core), vjust=-0.5, size=3, show_guide=FALSE)
+print(p)
+save_plot("cumulative_C")
 
 
-md_long$value <- md_long$value / md_long$CoreMassPostInjection_g
-md_long <- subset(md_long, !is.na(value))
-
-md_long$lbl <- NA
-highCO2 <- md_long$variable == "CO2_dry" & md_long$value > .3
-highCH4 <- md_long$variable == "CH4_dry" & md_long$value > 0.002
-md_long$lbl[highCO2] <- md_long$DWP_core[highCO2]
-md_long$lbl[highCH4] <- md_long$DWP_core[highCH4]
-
-p1 <- ggplot(md_long, aes(DWP_core, value, fill=Depth_cm)) + geom_bar(stat="identity")
-p1 <- p1 + geom_text(aes(label=lbl), size=3)
-p1 <- p1 + facet_grid(variable~., scales="free")
-p1 <- p1 + theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-print(p1)
-save_plot("highfluxes")
-
-save_data(md_long)
+save_data(fluxdata)
 
 printlog("All done with", SCRIPTNAME)
 print(sessionInfo())
