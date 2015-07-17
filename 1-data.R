@@ -1,4 +1,5 @@
 # Process Picarro data for DWP lab experiment
+# This script reads all available data, writing to a `rawdata` file
 # Ben Bond-Lamberty April 2015
 
 source("0-functions.R")

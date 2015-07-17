@@ -22,14 +22,17 @@ print(summary(rawdata))
 # Fractional solenoid values mean that the analyzer was shifting
 # between two samples. Discard these.
 printlog( "Removing fractional MPVPosition" )
-rawdata <- subset(rawdata, MPVPosition==trunc(MPVPosition))
+rawdata <- subset(rawdata, MPVPosition == trunc(MPVPosition))
 
 # Make true dates
 printlog( "Converting date/time info to POSIXct..." )
 rawdata$DATETIME <- ymd_hms(paste(rawdata$DATE, rawdata$TIME))
 
-# Assign a different sample number to each sample group (we know we're on a new 
-# group when MPVPosition changes)
+printlog( "Sorting by date..." )
+rawdata <- arrange(rawdata, DATETIME)
+
+# Assign a different sample number to each sample group 
+# (we know we're on a new sample when MPVPosition changes)
 printlog("Assigning sample numbers...")
 oldsampleflag <- with(rawdata, c(FALSE, 
                                   MPVPosition[-length(MPVPosition)] == MPVPosition[-1] &
@@ -44,19 +47,6 @@ rawdata <- rawdata %>%
   filter(trt == "injection data") %>%
   mutate(elapsed_seconds = (FRAC_HRS_SINCE_JAN1 - min(FRAC_HRS_SINCE_JAN1)) * 60 * 60) %>%
   filter(elapsed_seconds <= FLUXWINDOW_S)
-
-# printlog("Computing CO2 and CH4 models...")
-# mods <- rawdata %>%
-#   group_by(samplenum) %>%
-#   do(co2mod = lm(CO2_dry ~ FRAC_HRS_SINCE_JAN1, data = .),
-#      ch4mod = lm(CH4_dry ~ FRAC_HRS_SINCE_JAN1, data = .))
-# 
-# modsummary <- mods %>% 
-#   summarise(R2_CO2=summary(co2mod)$r.squared,
-#             R2_CH4=summary(ch4mod)$r.squared,
-#             m_CO2=coef(co2mod)[2],
-#             m_CH4=coef(co2mod)[2])
-# modsummary$samplenum <- unique(rawdata$samplenum)
 
 printlog( "Computing summary statistics for each sample..." )
 summarydata <- rawdata %>%
@@ -85,13 +75,26 @@ summarydata <- rawdata %>%
     Trt = paste(unique(trt), collapse=",")
   )
 
-#printlog("Merging summary and model data...")
-#summarydata <- merge(summarydata, modsummary)
 
 # Load MPVPosition map
 printlog("Loading valve map data and merging...")
 valvemap <- read_csv("data/DWP_valve assignment 3 March2105.csv")
-summarydata <- merge(summarydata, valvemap, by=c("Rep", "Valve"))
+summarydata <- merge(summarydata, valvemap, by=c("Injection", "Rep", "Valve"))
+
+# Injection 2 was different than injection 1: it consisted of three cores in sequence,
+# always on valve 12, monitored continuously (alternating with an ambient on valve 10).
+# Valve 11 appears in the raw data but is an artifact. From Sarah Fansler's email:
+# Core #4 injected with 6 ml methane at 3 pm on June 26.
+# Core #2 injected with 6 ml methane at 10:22 am on June 30.
+# Core #7 injected at 10:56 am on July 3.
+# Data pulled at 3:25 pm on 7 July.
+inj2 <- with(summarydata, Injection == 2 & Valve == 12)
+summarydata$DWP_core[inj2] <- "7"
+# Note that the Picarro is on UTC already
+summarydata$DWP_core[inj2 & summarydata$DATETIME < ymd_hm("2015-07-03 10:56")] <- "2"
+summarydata$DWP_core[inj2 & summarydata$DATETIME < ymd_hm("2015-06-30 10:22")] <- "4"
+
+# Assign 'Source' field
 summarydata$Source <- "Core"
 summarydata$Source[summarydata$DWP_core == "ambient"] <- "Ambient"
 summarydata$Source[summarydata$DWP_core == "CH4 blank"] <- "Blank"

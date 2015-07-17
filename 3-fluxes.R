@@ -30,7 +30,7 @@ print_dims(summarydata)
 printlog("Filtering data...")
 fluxdata <- summarydata %>%
   filter(Trt == "injection data", Source == "Core") %>%
-  select(DWP_core, Rep, samplenum, m_CO2, m_CH4, ELAPSED_TIME, 
+  select(DWP_core, Injection, Rep, samplenum, m_CO2, m_CH4, ELAPSED_TIME, 
          Site, Depth_cm, MinDepth_cm, CoreMassPostInjection_g, headspace_in_core_cm)
 
 # Flux rates are ppm/s (CO2) or ppb/s (CH4) in `summarydata`
@@ -88,6 +88,12 @@ fluxdata <- fluxdata %>%
          CH4_flux_mgC = CH4_flux_mgC_s * (ELAPSED_TIME - lag(ELAPSED_TIME)),
          cumCH4_flux_mgC = c(0, cumsum(CH4_flux_mgC[!is.na(CH4_flux_mgC)])))
 
+# We ran a subsequent check using cores, 2, 4, and 7, monitoring them continuously to make sure
+# we didn't miss any methane or CO2 'burps'. Split off those data separately.
+printlog("Splitting data by injection...")
+fluxdata_247check <- filter(fluxdata, Injection == 2)
+fluxdata <- filter(fluxdata, Injection != 2)
+
 fluxdata_labels <- fluxdata %>%
   group_by(Rep, DWP_core, Depth_cm) %>%
   arrange(ELAPSED_TIME) %>%
@@ -119,6 +125,13 @@ p <- p + geom_text(data=fluxdata_labels, aes(label=DWP_core), vjust=-0.5, size=3
 print(p)
 save_plot("cumulative_C")
 
+# 
+# checkplotdata <- fluxdata_247check %>% 
+#   select(ELAPSED_TIME, Depth_cm, DWP_core, cumCO2_flux_mgC, cumCH4_flux_mgC) %>%
+#   mutate(cumC_flux_mgC = cumCO2_flux_mgC + cumCH4_flux_mgC) %>%
+#   melt(measure.vars=c("cumCO2_flux_mgC", "cumCH4_flux_mgC", "cumC_flux_mgC"))
+# ggplot(checkplotdata, aes(ELAPSED_TIME/60/60, value, color=variable, group=variable)) + geom_line() + facet_wrap(~DWP_core)
+# 
 
 save_data(fluxdata)
 
