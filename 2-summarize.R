@@ -115,7 +115,7 @@ summarydata$MinDepth_cm <- as.numeric(str_extract(summarydata$Depth_cm, "^[0-9]*
 
 printlog("Computing elapsed times...")
 summarydata <- summarydata %>% 
-  group_by(Rep, Valve, Trt) %>% 
+  group_by(Rep, DWP_core, Trt) %>% 
   mutate(ELAPSED_TIME=as.numeric(DATETIME - min(DATETIME)))
 
 # Done!

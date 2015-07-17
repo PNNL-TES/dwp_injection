@@ -125,13 +125,17 @@ p <- p + geom_text(data=fluxdata_labels, aes(label=DWP_core), vjust=-0.5, size=3
 print(p)
 save_plot("cumulative_C")
 
-# 
-# checkplotdata <- fluxdata_247check %>% 
-#   select(ELAPSED_TIME, Depth_cm, DWP_core, cumCO2_flux_mgC, cumCH4_flux_mgC) %>%
-#   mutate(cumC_flux_mgC = cumCO2_flux_mgC + cumCH4_flux_mgC) %>%
-#   melt(measure.vars=c("cumCO2_flux_mgC", "cumCH4_flux_mgC", "cumC_flux_mgC"))
-# ggplot(checkplotdata, aes(ELAPSED_TIME/60/60, value, color=variable, group=variable)) + geom_line() + facet_wrap(~DWP_core)
-# 
+printlog("Plotting injection 2 data...")
+checkplotdata <- fluxdata_247check %>% 
+  select(ELAPSED_TIME, Depth_cm, DWP_core, cumCO2_flux_mgC, cumCH4_flux_mgC) %>%
+  mutate(cumC_flux_mgC = cumCO2_flux_mgC + cumCH4_flux_mgC) %>%
+  melt(measure.vars=c("cumCO2_flux_mgC", "cumCH4_flux_mgC", "cumC_flux_mgC"))
+p <- ggplot(checkplotdata, aes(ELAPSED_TIME/60/60, value, color=factor(DWP_core)))
+p <- p + geom_line() + facet_grid(variable ~ ., scales='free')
+p <- p + xlab("Elapsed time (hours)") + ylab("Cumulative C flux (mg C)")
+print(p)
+save_plot("injection2")
+
 
 save_data(fluxdata)
 
