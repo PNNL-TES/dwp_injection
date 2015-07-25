@@ -131,7 +131,7 @@ checkplotdata <- fluxdata_247check %>%
   mutate(cumC_flux_mgC = cumCO2_flux_mgC + cumCH4_flux_mgC) %>%
   melt(measure.vars=c("cumCO2_flux_mgC", "cumCH4_flux_mgC", "cumC_flux_mgC"))
 p <- ggplot(checkplotdata, aes(ELAPSED_TIME/60/60, value, color=factor(DWP_core)))
-p <- p + geom_line() + facet_grid(variable ~ ., scales='free')
+p <- p + geom_line() + facet_grid(variable ~ ., scales='free_y')
 p <- p + xlab("Elapsed time (hours)") + ylab("Cumulative C flux (mg C)")
 print(p)
 save_plot("injection2")
