@@ -1,3 +1,7 @@
+#Sampling
+
+We used a 10-cm diameter split core sampler: item 421.04 from AMS-Samplers (5/8" Threaded, Stainless Steel, Soil Recovery Augers) with a pvc liner. 
+
 #Experiment 1. Influence of variable saturation conditions on methane transmission and oxidation through a soil column; identification of critical reaction zones.**
 
 When CH4 is generated in a soil, at locally anoxic sites, the percolation of the gas through the soil may encounter conditions where the gas is re-oxidized to CO2. This oxidation results in two mechanistic processes being unaccounted for, conceptually: the CH4 production processes may be underreported, and the biological oxidation of C substrates may be over-estimated. Thus, clarifying and accounting for this process in a soil column is necessary as a first step to accurately representing GHG production and emission from soils. 
