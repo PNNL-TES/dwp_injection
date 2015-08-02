@@ -27,6 +27,10 @@ rawdata <- subset(rawdata, MPVPosition == trunc(MPVPosition))
 # Make true dates
 printlog( "Converting date/time info to POSIXct..." )
 rawdata$DATETIME <- ymd_hms(paste(rawdata$DATE, rawdata$TIME), tz="America/Los_Angeles")
+printlog("First timestamp:")
+print(min(rawdata$DATETIME))
+printlog("Last timestamp:")
+print(max(rawdata$DATETIME))
 
 printlog( "Sorting by date..." )
 rawdata <- arrange(rawdata, DATETIME)
@@ -137,13 +141,9 @@ summarydata <- merge(summarydata, massdata, by=c("Injection", "Rep", "DWP_core")
 printlog("Computing min depth...")
 summarydata$MinDepth_cm <- as.numeric(str_extract(summarydata$Depth_cm, "^[0-9]*"))
 
-# The MPVPosition map include `Start`, the injection date and time
-# Recalculate ELAPSED_TIME based on this
-printlog("Computing elapsed times...")
-summarydata$STARTDATETIME <- mdy_hm(summarydata$Start, tz="America/Los_Angeles")
-summarydata$ELAPSED_TIME <- with(summarydata, as.numeric(difftime(DATETIME, STARTDATETIME, units="secs")))
 
 # Done!
+
 save_data(summarydata, scriptfolder=FALSE)
 
 printlog("All done with", SCRIPTNAME)
