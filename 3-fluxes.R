@@ -6,7 +6,6 @@ source("0-functions.R")
 SCRIPTNAME  	<- "3-fluxes.R"
 SUMMARYDATA      <- file.path(OUTPUT_DIR, "summarydata.csv")  # output from script 2
 
-
 # ==============================================================================
 # Main 
 
@@ -27,6 +26,7 @@ print(str(summarydata))
 printlog("Computing elapsed times...")
 summarydata$ELAPSED_TIME <- with(summarydata, as.numeric(difftime(DATETIME, STARTDATETIME, units="secs")))
 
+# Observations with negative elapsed times occurred before the injection
 printlog("QC plot showing elapsed time and treatment...")
 p <- ggplot(summarydata, aes(ELAPSED_TIME/60/60, max_CO2, color=Trt))
 p <- p + geom_point() + geom_vline()
@@ -35,9 +35,6 @@ print(p)
 save_plot("QC_elapsed_time")
 # TODO: note there appears to be a lot of mis-categorized data here
 
-# Observations with negative elapsed times occurred before the injection
-
-
 printlog("Reading and merging headspace data...")
 hs <- read_csv("data/DWP2013 headspace_cm.csv")
 summarydata <- merge(summarydata, hs, all.x=TRUE)
@@ -45,10 +42,12 @@ print_dims(summarydata)
 
 printlog("Filtering data...")
 fluxdata <- summarydata %>%
-  #  filter(Trt == "injection data") %>%
   select(Trt, DWP_core, SamplePoint, Injection, Rep, samplenum, ELAPSED_TIME, 
-         min_CO2, min_CO2_time, min_CH4, min_CH4_time, max_CO2, max_CO2_time, max_CH4, max_CH4_time,
+         min_CO2, min_CO2_time, min_CH4, min_CH4_time, 
+         max_CO2, max_CO2_time, max_CH4, max_CH4_time,
          Site, Depth_cm, MinDepth_cm, CoreMassPostInjection_g, headspace_in_core_cm)
+
+# ----------------------------------------------------------------------
 
 printlog("Computing flux rates...")
 # Flux rates are ppm/s (CO2) or ppb/s (CH4) in `summarydata`
@@ -101,6 +100,8 @@ printlog("Removing incomplete cases...")
 fluxdata <- fluxdata[complete.cases(fluxdata),]
 print_dims(fluxdata)
 
+# ----------------------------------------------------------------------
+
 printlog("Computing pre-injection rates...")
 fd_preinjection <- fluxdata %>%
   filter(ELAPSED_TIME <= 0) %>%
@@ -110,6 +111,7 @@ fd_preinjection <- fluxdata %>%
             CH4_flux_umol_g_s_pre = mean(CH4_flux_umol_g_s, na.rm=TRUE),
             CH4_flux_umol_g_s_presd = sd(CH4_flux_umol_g_s, na.rm=TRUE))
 
+# Do a bunch of QC plots check pre- versus postinjection fluxes
 p <- qplot(as.numeric(DWP_core), CO2_flux_umol_g_s_pre, data=fd_preinjection)
 p <- p + geom_text(aes(label=DWP_core), size=4, vjust=-.5, hjust=-.5)
 p <- p + geom_errorbar(aes(ymin=CO2_flux_umol_g_s_pre - CO2_flux_umol_g_s_presd,
@@ -123,12 +125,26 @@ p <- p + geom_errorbar(aes(ymin=CH4_flux_umol_g_s_pre - CH4_flux_umol_g_s_presd,
 print(p)
 save_plot("QC_CH4_preinjection")
 
+for(dwp in unique(fluxdata$DWP_core)) {
+  printlog("QC preinjection for core", dwp)
+  d <- subset(fluxdata, DWP_core==dwp)
+  p1 <- ggplot(d, aes(ELAPSED_TIME/60/60, CO2_flux_umol_g_s, color=Trt)) + geom_point()
+  p1 <- p1 + scale_color_manual(values=c("red", "blue"))
+  p1 <- p1 + geom_hline(yintercept=mean(d[d$ELAPSED_TIME <= 0, "CO2_flux_umol_g_s"], na.rm=TRUE), color="red", linetype=2) 
+  p1 <- p1 + geom_hline(yintercept=mean(d[d$ELAPSED_TIME > 0, "CO2_flux_umol_g_s"], na.rm=TRUE), color="blue", linetype=2) 
+  p1 <- p1 + geom_vline(linetype=2) + ggtitle(paste("DWP core", dwp))
+  p2 <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, CO2_flux_umol_g_s, group=DWP_core)) 
+  p2 <- p2 + geom_line(alpha=I(.5)) + geom_line(data=d, color="red")
+  pdf(file.path(outputdir(), paste0("QC_core_", dwp, ".pdf")))
+  multiplot(p1, p2)
+  dev.off()
+}
 
 # merge back into main data
 fluxdata <- left_join(fluxdata, fd_preinjection, by=c("Rep", "DWP_core"))
-
 print_dims(fluxdata)
 
+# ----------------------------------------------------------------------
 
 printlog("Computing cumulative C emission...")
 fluxdata <- fluxdata %>%
@@ -150,9 +166,11 @@ print_dims(fluxdata)
 fluxdata$cumCO2_flux_mgC[is.na(fluxdata$cumCO2_flux_mgC)] <- 0.0
 fluxdata$cumCH4_flux_mgC[is.na(fluxdata$cumCH4_flux_mgC)] <- 0.0
 
+# ----------------------------------------------------------------------
 
-# We ran a subsequent check using cores, 2, 4, and 7, monitoring them continuously to make sure
-# we didn't miss any methane or CO2 'burps'. Split off those data separately.
+# We ran a subsequent check using cores, 2, 4, and 7, monitoring them 
+# continuously to make sure we didn't miss any methane or CO2 'burps'. 
+# Split off those data separately.
 printlog("Splitting data by injection...")
 fluxdata_247check <- filter(fluxdata, Injection == 2)
 fluxdata <- filter(fluxdata, Injection != 2)
