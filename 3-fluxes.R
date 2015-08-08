@@ -130,14 +130,26 @@ for(dwp in unique(fluxdata$DWP_core)) {
   d <- subset(fluxdata, DWP_core==dwp)
   p1 <- ggplot(d, aes(ELAPSED_TIME/60/60, CO2_flux_umol_g_s, color=Trt)) + geom_point()
   p1 <- p1 + scale_color_manual(values=c("red", "blue"))
+  p1 <- p1 + geom_vline(linetype=2) + ggtitle(paste("DWP core", dwp))
   p1 <- p1 + geom_hline(yintercept=mean(d[d$ELAPSED_TIME <= 0, "CO2_flux_umol_g_s"], na.rm=TRUE), color="red", linetype=2) 
   p1 <- p1 + geom_hline(yintercept=mean(d[d$ELAPSED_TIME > 0, "CO2_flux_umol_g_s"], na.rm=TRUE), color="blue", linetype=2) 
-  p1 <- p1 + geom_vline(linetype=2) + ggtitle(paste("DWP core", dwp))
   p2 <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, CO2_flux_umol_g_s, group=DWP_core)) 
   p2 <- p2 + geom_line(alpha=I(.5)) + geom_line(data=d, color="red")
-  pdf(file.path(outputdir(), paste0("QC_core_", dwp, ".pdf")))
+  pdf(file.path(outputdir(), paste0("QC_core_", dwp, "_CO2.pdf")))
   multiplot(p1, p2)
   dev.off()
+  # CH4
+  p1 <- ggplot(d, aes(ELAPSED_TIME/60/60, CH4_flux_umol_g_s, color=Trt)) + geom_point()
+  p1 <- p1 + scale_color_manual(values=c("red", "blue")) + scale_y_log10()
+  p1 <- p1 + geom_vline(linetype=2) + ggtitle(paste("DWP core", dwp))
+  p1 <- p1 + geom_hline(yintercept=mean(d[d$ELAPSED_TIME <= 0, "CH4_flux_umol_g_s"], na.rm=TRUE), color="red", linetype=2) 
+  p1 <- p1 + geom_hline(yintercept=mean(d[d$ELAPSED_TIME > 0, "CH4_flux_umol_g_s"], na.rm=TRUE), color="blue", linetype=2) 
+  p2 <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, CH4_flux_umol_g_s, group=DWP_core)) 
+  p2 <- p2 + geom_line(alpha=I(.5)) + geom_line(data=d, color="red") + scale_y_log10()
+  pdf(file.path(outputdir(), paste0("QC_core_", dwp, "_CH4.pdf")))
+  multiplot(p1, p2)
+  dev.off()
+  
 }
 
 # merge back into main data
