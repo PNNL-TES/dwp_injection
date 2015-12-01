@@ -26,7 +26,7 @@ rawdata <- subset(rawdata, MPVPosition == trunc(MPVPosition))
 
 # Make true dates
 printlog( "Converting date/time info to POSIXct..." )
-rawdata$DATETIME <- ymd_hms(paste(rawdata$DATE, rawdata$TIME), tz="America/Los_Angeles")
+rawdata$DATETIME <- ymd_hms(paste(rawdata$DATE, rawdata$TIME), tz = "UTC") # tz="America/Los_Angeles")
 printlog("First timestamp:")
 print(min(rawdata$DATETIME))
 printlog("Last timestamp:")
@@ -114,11 +114,14 @@ summarydata <- merge(summarydata_raw, valvemap, by=c("Injection", "Rep", "Valve"
 # Core #2 injected with 6 ml methane at 10:22 am on June 30.
 # Core #7 injected at 10:56 am on July 3.
 # Data pulled at 3:25 pm on 7 July.
+printlog("Splitting off injection 2 data...")
 inj2 <- with(summarydata, Injection == 2 & Valve == 12)
 summarydata$DWP_core[inj2] <- "7"
 # Note that the Picarro is on UTC already
-summarydata$DWP_core[inj2 & summarydata$DATETIME < ymd_hm("2015-07-03 10:56", tz="America/Los_Angeles")] <- "2"
-summarydata$DWP_core[inj2 & summarydata$DATETIME < ymd_hm("2015-06-30 10:22", tz="America/Los_Angeles")] <- "4"
+core2time <- with_tz(ymd_hm("2015-07-03 10:56", tz = "America/Los_Angeles"), tz = "UTC")
+core4time <- with_tz(ymd_hm("2015-06-30 10:22", tz = "America/Los_Angeles"), tz = "UTC")
+summarydata$DWP_core[inj2 & summarydata$DATETIME < core2time] <- "2"
+summarydata$DWP_core[inj2 & summarydata$DATETIME < core4time] <- "4"
 
 # Assign 'Source' field
 summarydata$Source <- "Core"
