@@ -18,26 +18,35 @@ summarydata <- read_csv(SUMMARYDATA)
 
 library(lubridate)
 summarydata$DATETIME <- ymd_hms(summarydata$DATETIME)  # UTC
-summarydata$STARTDATETIME <- mdy_hm(summarydata$Start, tz="America/Los_Angeles")
+summarydata$STARTDATETIME <- with_tz(mdy_hm(summarydata$Start, tz = "America/Los_Angeles"), tzone = "UTC")
 print_dims(summarydata)
 print(str(summarydata))
 
 # Compute ELAPSED_TIME based on 'Start' field (originally in the valve map data)
 printlog("Computing elapsed times...")
-summarydata$ELAPSED_TIME <- with(summarydata, as.numeric(difftime(DATETIME, STARTDATETIME, units="secs")))
+summarydata$ELAPSED_TIME <- with(summarydata, as.numeric(difftime(DATETIME, STARTDATETIME, units = "secs")))
 
 # Observations with negative elapsed times occurred before the injection
 printlog("QC plot showing elapsed time and treatment...")
-p <- ggplot(summarydata, aes(ELAPSED_TIME/60/60, max_CO2, color=Trt))
-p <- p + geom_point() + geom_vline()
-p <- p + facet_wrap(~DWP_core) + xlim(c(-10, 10))
+summarydata$RepCore <- paste(summarydata$Rep, summarydata$DWP_core)
+p <- ggplot(summarydata, aes(ELAPSED_TIME/60/60, max_CO2, color = Trt))
+p <- p + geom_point() + geom_vline(xintercept = 0)
+p <- p + facet_wrap(~RepCore) + coord_cartesian(xlim = c(-10, 10))
 print(p)
 save_plot("QC_elapsed_time")
 # TODO: note there appears to be a lot of mis-categorized data here
 
+# Closeup on C and D reps
+x <- subset(summarydata, Rep %in% c("C", "D"))
+p <- ggplot(x, aes(ELAPSED_TIME/60/60, max_CO2, color = Trt))
+p <- p + geom_point() + geom_vline(xintercept = 0)
+p <- p + facet_wrap(~RepCore)
+print(p)
+save_plot("QC_elapsed_time_CD")
+
 printlog("Reading and merging headspace data...")
 hs <- read_csv("data/DWP2013 headspace_cm.csv")
-summarydata <- merge(summarydata, hs, all.x=TRUE)
+summarydata <- merge(summarydata, hs, all.x = TRUE)
 print_dims(summarydata)
 
 printlog("Filtering data...")
@@ -106,46 +115,46 @@ printlog("Computing pre-injection rates...")
 fd_preinjection <- fluxdata %>%
   filter(ELAPSED_TIME <= 0) %>%
   group_by(Rep, DWP_core) %>%
-  summarise(CO2_flux_umol_g_s_pre = mean(CO2_flux_umol_g_s, na.rm=TRUE),
-            CO2_flux_umol_g_s_presd = sd(CO2_flux_umol_g_s, na.rm=TRUE),
-            CH4_flux_umol_g_s_pre = mean(CH4_flux_umol_g_s, na.rm=TRUE),
-            CH4_flux_umol_g_s_presd = sd(CH4_flux_umol_g_s, na.rm=TRUE))
+  summarise(CO2_flux_umol_g_s_pre = mean(CO2_flux_umol_g_s, na.rm = TRUE),
+            CO2_flux_umol_g_s_presd = sd(CO2_flux_umol_g_s, na.rm = TRUE),
+            CH4_flux_umol_g_s_pre = mean(CH4_flux_umol_g_s, na.rm = TRUE),
+            CH4_flux_umol_g_s_presd = sd(CH4_flux_umol_g_s, na.rm = TRUE))
 
 # Do a bunch of QC plots check pre- versus postinjection fluxes
 p <- qplot(as.numeric(DWP_core), CO2_flux_umol_g_s_pre, data=fd_preinjection)
-p <- p + geom_text(aes(label=DWP_core), size=4, vjust=-.5, hjust=-.5)
-p <- p + geom_errorbar(aes(ymin=CO2_flux_umol_g_s_pre - CO2_flux_umol_g_s_presd,
-                           ymax=CO2_flux_umol_g_s_pre + CO2_flux_umol_g_s_presd))
+p <- p + geom_text(aes(label = DWP_core), size = 4, vjust = -0.5, hjust = -0.5)
+p <- p + geom_errorbar(aes(ymin = CO2_flux_umol_g_s_pre - CO2_flux_umol_g_s_presd,
+                           ymax = CO2_flux_umol_g_s_pre + CO2_flux_umol_g_s_presd))
 print(p)
 save_plot("QC_CO2_preinjection")
 p <- qplot(as.numeric(DWP_core), CH4_flux_umol_g_s_pre, data=fd_preinjection)
-p <- p + geom_text(aes(label=DWP_core), size=4, vjust=-.5, hjust=-.5)
-p <- p + geom_errorbar(aes(ymin=CH4_flux_umol_g_s_pre - CH4_flux_umol_g_s_presd,
-                           ymax=CH4_flux_umol_g_s_pre + CH4_flux_umol_g_s_presd))
+p <- p + geom_text(aes(label = DWP_core), size = 4, vjust = -0.5, hjust = -0.5)
+p <- p + geom_errorbar(aes(ymin = CH4_flux_umol_g_s_pre - CH4_flux_umol_g_s_presd,
+                           ymax = CH4_flux_umol_g_s_pre + CH4_flux_umol_g_s_presd))
 print(p)
 save_plot("QC_CH4_preinjection")
 
 for(dwp in unique(fluxdata$DWP_core)) {
   printlog("QC preinjection for core", dwp)
-  d <- subset(fluxdata, DWP_core==dwp)
-  p1 <- ggplot(d, aes(ELAPSED_TIME/60/60, CO2_flux_umol_g_s, color=Trt)) + geom_point()
-  p1 <- p1 + scale_color_manual(values=c("red", "blue"))
-  p1 <- p1 + geom_vline(linetype=2) + ggtitle(paste("DWP core", dwp))
-  p1 <- p1 + geom_hline(yintercept=mean(d[d$ELAPSED_TIME <= 0, "CO2_flux_umol_g_s"], na.rm=TRUE), color="red", linetype=2) 
-  p1 <- p1 + geom_hline(yintercept=mean(d[d$ELAPSED_TIME > 0, "CO2_flux_umol_g_s"], na.rm=TRUE), color="blue", linetype=2) 
-  p2 <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, CO2_flux_umol_g_s, group=DWP_core)) 
-  p2 <- p2 + geom_line(alpha=I(.5)) + geom_line(data=d, color="red")
+  d <- subset(fluxdata, DWP_core == dwp)
+  p1 <- ggplot(d, aes(ELAPSED_TIME/60/60, CO2_flux_umol_g_s, color = Trt)) + geom_point()
+  p1 <- p1 + scale_color_manual(values = c("red", "blue"))
+  p1 <- p1 + geom_vline(xintercept = 0, linetype = 2) + ggtitle(paste("DWP core", dwp))
+  p1 <- p1 + geom_hline(yintercept = mean(d[d$ELAPSED_TIME <= 0, "CO2_flux_umol_g_s"], na.rm = TRUE), color="red", linetype = 2) 
+  p1 <- p1 + geom_hline(yintercept = mean(d[d$ELAPSED_TIME > 0, "CO2_flux_umol_g_s"], na.rm = TRUE), color="blue", linetype = 2) 
+  p2 <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, CO2_flux_umol_g_s, group = DWP_core)) 
+  p2 <- p2 + geom_line(alpha = I(.5)) + geom_line(data = d, color = "red")
   pdf(file.path(outputdir(), paste0("QC_core_", dwp, "_CO2.pdf")))
   multiplot(p1, p2)
   dev.off()
   # CH4
   p1 <- ggplot(d, aes(ELAPSED_TIME/60/60, CH4_flux_umol_g_s, color=Trt)) + geom_point()
-  p1 <- p1 + scale_color_manual(values=c("red", "blue")) + scale_y_log10()
-  p1 <- p1 + geom_vline(linetype=2) + ggtitle(paste("DWP core", dwp))
-  p1 <- p1 + geom_hline(yintercept=mean(d[d$ELAPSED_TIME <= 0, "CH4_flux_umol_g_s"], na.rm=TRUE), color="red", linetype=2) 
-  p1 <- p1 + geom_hline(yintercept=mean(d[d$ELAPSED_TIME > 0, "CH4_flux_umol_g_s"], na.rm=TRUE), color="blue", linetype=2) 
-  p2 <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, CH4_flux_umol_g_s, group=DWP_core)) 
-  p2 <- p2 + geom_line(alpha=I(.5)) + geom_line(data=d, color="red") + scale_y_log10()
+  p1 <- p1 + scale_color_manual(values = c("red", "blue")) + scale_y_log10()
+  p1 <- p1 + geom_vline(xintercept = 0, linetype = 2) + ggtitle(paste("DWP core", dwp))
+  p1 <- p1 + geom_hline(yintercept = mean(d[d$ELAPSED_TIME <= 0, "CH4_flux_umol_g_s"], na.rm = TRUE), color="red", linetype = 2) 
+  p1 <- p1 + geom_hline(yintercept = mean(d[d$ELAPSED_TIME > 0, "CH4_flux_umol_g_s"], na.rm = TRUE), color="blue", linetype = 2) 
+  p2 <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, CH4_flux_umol_g_s, group = DWP_core)) 
+  p2 <- p2 + geom_line(alpha = I(.5)) + geom_line(data = d, color = "red") + scale_y_log10()
   pdf(file.path(outputdir(), paste0("QC_core_", dwp, "_CH4.pdf")))
   multiplot(p1, p2)
   dev.off()

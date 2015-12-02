@@ -80,6 +80,7 @@ for(dir in dirlist) {
   rep <- str_extract(d1, "[A-Z]*$")
   printlog("injection", injection, "rep", rep)
   for(trt in list.files(file.path(DATA_DIR, dir))) {
+    printlog("Treatment", trt)
     process_directory(file.path(DATA_DIR, dir, trt), tf, injection, rep, trt)
   }
 }
@@ -89,6 +90,10 @@ printlog("Reading in full data set...")
 rawdata <- readr::read_csv(tf)
 print_dims(rawdata)
 print(summary(rawdata))
+
+rawdata %>% group_by(rep,trt) %>% summarise(n()) %>% print()
+
+rawdata %>% group_by(rep,trt, MPVPosition) %>% summarise(n()) %>% as.data.frame() %>% print()
 
 printlog("Writing output file...")
 save_data(rawdata, scriptfolder=FALSE, gzip=TRUE)
