@@ -18,7 +18,7 @@ rawdata <- gzfile(RAWDATA) %>% readr::read_csv()
 print_dims(rawdata)
 print(summary(rawdata))
 
-rawdata %>% group_by(rep,trt) %>% summarise(n()) %>% print()
+rawdata %>% group_by(rep) %>% summarise(n()) %>% print()
 
 # Fractional solenoid values mean that the analyzer was shifting
 # between two samples. Discard these.
@@ -39,22 +39,19 @@ rawdata <- arrange(rawdata, DATETIME)
 # Assign a different sample number to each sample group 
 # (we know we're on a new sample when MPVPosition changes)
 printlog("Assigning sample numbers...")
-oldsampleflag <- with(rawdata, c(FALSE, 
-                                  MPVPosition[-length(MPVPosition)] == MPVPosition[-1] &
-                                    trt[-length(trt)] == trt[-1]))
+oldsampleflag <- with(rawdata, c(FALSE, MPVPosition[-length(MPVPosition)] == MPVPosition[-1] ))
 rawdata$samplenum <- cumsum(!oldsampleflag)
 
 printlog("Sample number summary:")
 rawdata %>% 
-  group_by(trt, rep) %>% 
+  group_by(rep) %>% 
   summarise(unique_samplenums = length(unique(samplenum)),
             unique_MPVPositions = length(unique(MPVPosition))) %>%
   print()
 
-printlog("Computing elapsed seconds...")
+printlog("Computing elapsed seconds within each sample...")
 rawdata <- rawdata %>%
   group_by(samplenum) %>%
-#  filter(trt == "injection data") %>%
   mutate(elapsed_seconds = (FRAC_HRS_SINCE_JAN1 - min(FRAC_HRS_SINCE_JAN1)) * 60 * 60)
 
 printlog( "Computing summary statistics for each sample..." )
@@ -95,7 +92,7 @@ summarydata_other <- rawdata %>%
   summarise(
     Injection = mean(injection),
     Rep = paste(unique(rep), collapse=","),
-    Trt = paste(unique(trt), collapse=","),
+#    Trt = paste(unique(trt), collapse=","),
     
     DATETIME = mean(DATETIME),
     N = n(),
@@ -104,7 +101,7 @@ summarydata_other <- rawdata %>%
   )
 
 printlog("summarydata_other summary:")
-summarydata_other %>% group_by(Rep, Trt) %>% summarise(n()) %>% print()
+summarydata_other %>% group_by(Rep) %>% summarise(n()) %>% print()
 
 # Merge pieces together to form final summary data set
 summarydata_raw <- summarydata_other %>%
@@ -113,7 +110,7 @@ summarydata_raw <- summarydata_other %>%
   left_join(summarydata_maxCH4, by="samplenum")
 
 printlog("summarydata_raw summary:")
-summarydata_raw %>% group_by(Rep, Trt) %>% summarise(n()) %>% print()
+summarydata_raw %>% group_by(Rep) %>% summarise(n()) %>% print()
 
 # Load MPVPosition map
 printlog("Loading valve map data and merging...")
@@ -121,7 +118,7 @@ valvemap <- read_csv("data/DWP_valve assignment 3 March2105.csv")
 summarydata <- merge(summarydata_raw, valvemap, by=c("Injection", "Rep", "Valve"))
 
 printlog("Post valvemap merge summarydata summary:")
-summarydata %>% group_by(Rep, Trt) %>% summarise(n()) %>% print()
+summarydata %>% group_by(Rep) %>% summarise(n()) %>% print()
 
 # Injection 2 was different than injection 1: it consisted of three cores in sequence,
 # always on valve 12, monitored continuously (alternating with an ambient on valve 10).
@@ -140,7 +137,7 @@ summarydata$DWP_core[inj2 & summarydata$DATETIME < core2time] <- "2"
 summarydata$DWP_core[inj2 & summarydata$DATETIME < core4time] <- "4"
 
 printlog("Post injection 2 removal summarydata summary:")
-summarydata %>% group_by(Rep, Trt) %>% summarise(n()) %>% print()
+summarydata %>% group_by(Rep) %>% summarise(n()) %>% print()
 
 # Assign 'Source' field
 summarydata$Source <- "Core"
@@ -156,7 +153,7 @@ summarydata$Depth_cm[summarydata$Source == "Ambient"] <- "Ambient"
 summarydata$Depth_cm[summarydata$Source == "Blank"] <- "Blank"
 
 printlog("Post field data merge summarydata summary:")
-summarydata %>% group_by(Rep, Trt) %>% summarise(n()) %>% print()
+summarydata %>% group_by(Rep) %>% summarise(n()) %>% print()
 
 # Load mass data
 printlog("Loading mass data and merging...")
@@ -164,11 +161,14 @@ massdata <- read_csv("Core inj log_mass 9March2015.csv", datadir = "data/")
 summarydata <- merge(summarydata, massdata, by = c("Injection", "Rep", "DWP_core"), all.x = TRUE)
 
 printlog("Post mass data merge summarydata summary:")
-summarydata %>% group_by(Rep, Trt) %>% summarise(n()) %>% print()
+summarydata %>% group_by(Rep) %>% summarise(n()) %>% print()
 
 printlog("Computing min depth...")
 summarydata$MinDepth_cm <- as.numeric(str_extract(summarydata$Depth_cm, "^[0-9]*"))
 
+printlog("Computing STARTDATETIME (UTC) and ELAPSEDTIME...")
+summarydata$STARTDATETIME <- with_tz(mdy_hm(summarydata$Start, tz = "America/Los_Angeles"), tzone = "UTC")
+summarydata$ELAPSED_TIME <- with(summarydata, as.numeric(difftime(DATETIME, STARTDATETIME, units = "secs")))
 
 # Done!
 

@@ -18,31 +18,22 @@ summarydata <- read_csv(SUMMARYDATA)
 
 library(lubridate)
 summarydata$DATETIME <- ymd_hms(summarydata$DATETIME)  # UTC
-summarydata$STARTDATETIME <- with_tz(mdy_hm(summarydata$Start, tz = "America/Los_Angeles"), tzone = "UTC")
+summarydata$STARTDATETIME <- ymd_hms(summarydata$STARTDATETIME)  # UTC
 print_dims(summarydata)
 print(str(summarydata))
 
-# Compute ELAPSED_TIME based on 'Start' field (originally in the valve map data)
-printlog("Computing elapsed times...")
-summarydata$ELAPSED_TIME <- with(summarydata, as.numeric(difftime(DATETIME, STARTDATETIME, units = "secs")))
+summarydata$Trt <- "Pre-injection"
+summarydata$Trt[summarydata$ELAPSED_TIME > 0] <- "Post-injection"
 
 # Observations with negative elapsed times occurred before the injection
 printlog("QC plot showing elapsed time and treatment...")
 summarydata$RepCore <- paste(summarydata$Rep, summarydata$DWP_core)
 p <- ggplot(summarydata, aes(ELAPSED_TIME/60/60, max_CO2, color = Trt))
-p <- p + geom_point() + geom_vline(xintercept = 0)
+p <- p + geom_point() + geom_vline(xintercept = 0) + xlab("Time since injection (hr)")
 p <- p + facet_wrap(~RepCore) + coord_cartesian(xlim = c(-10, 10))
 print(p)
 save_plot("QC_elapsed_time")
 # TODO: note there appears to be a lot of mis-categorized data here
-
-# Closeup on C and D reps
-x <- subset(summarydata, Rep %in% c("C", "D"))
-p <- ggplot(x, aes(ELAPSED_TIME/60/60, max_CO2, color = Trt))
-p <- p + geom_point() + geom_vline(xintercept = 0)
-p <- p + facet_wrap(~RepCore)
-print(p)
-save_plot("QC_elapsed_time_CD")
 
 printlog("Reading and merging headspace data...")
 hs <- read_csv("data/DWP2013 headspace_cm.csv")
@@ -138,6 +129,7 @@ for(dwp in unique(fluxdata$DWP_core)) {
   printlog("QC preinjection for core", dwp)
   d <- subset(fluxdata, DWP_core == dwp)
   p1 <- ggplot(d, aes(ELAPSED_TIME/60/60, CO2_flux_umol_g_s, color = Trt)) + geom_point()
+  p1 <- p1 + xlab("Time since injection (hr)")
   p1 <- p1 + scale_color_manual(values = c("red", "blue"))
   p1 <- p1 + geom_vline(xintercept = 0, linetype = 2) + ggtitle(paste("DWP core", dwp))
   p1 <- p1 + geom_hline(yintercept = mean(d[d$ELAPSED_TIME <= 0, "CO2_flux_umol_g_s"], na.rm = TRUE), color="red", linetype = 2) 
@@ -149,11 +141,13 @@ for(dwp in unique(fluxdata$DWP_core)) {
   dev.off()
   # CH4
   p1 <- ggplot(d, aes(ELAPSED_TIME/60/60, CH4_flux_umol_g_s, color=Trt)) + geom_point()
+  p1 <- p1 + xlab("Time since injection (hr)") 
   p1 <- p1 + scale_color_manual(values = c("red", "blue")) + scale_y_log10()
   p1 <- p1 + geom_vline(xintercept = 0, linetype = 2) + ggtitle(paste("DWP core", dwp))
   p1 <- p1 + geom_hline(yintercept = mean(d[d$ELAPSED_TIME <= 0, "CH4_flux_umol_g_s"], na.rm = TRUE), color="red", linetype = 2) 
   p1 <- p1 + geom_hline(yintercept = mean(d[d$ELAPSED_TIME > 0, "CH4_flux_umol_g_s"], na.rm = TRUE), color="blue", linetype = 2) 
   p2 <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, CH4_flux_umol_g_s, group = DWP_core)) 
+  p2 <- p2 + xlab("Time since injection (hr)")
   p2 <- p2 + geom_line(alpha = I(.5)) + geom_line(data = d, color = "red") + scale_y_log10()
   pdf(file.path(outputdir(), paste0("QC_core_", dwp, "_CH4.pdf")))
   multiplot(p1, p2)

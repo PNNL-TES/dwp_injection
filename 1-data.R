@@ -10,6 +10,8 @@ SCRIPTNAME  	<- "1-data.R"
 DATA_DIR      <- "data/"
 INJECTION_DIR_PATTERN <- "^CH4 injection "  # regex pattern for data directories
 
+files_we_have_already_seen <- c()
+
 # -----------------------------------------------------------------------------
 # read a single output file, returning data frame
 read_outputfile <- function(fqfn) {
@@ -40,18 +42,26 @@ process_directory <- function(input_path, tempfile, injection, rep, trt) {
   filelist <- list.files(path=input_path, pattern="dat$|dat.gz$|dat.zip$", recursive=T)
   ncolumns <- NA
   for(f in seq_along(filelist)) {
-    d <- read_outputfile(file.path(input_path, filelist[f]))
-    d$injection <- injection
-    d$rep <- rep
-    d$trt <- trt
-    
-    if(f > 1 & ncol(d) != ncolumns)
-      stop("Columns differ between files!")
-    ncolumns <- ncol(d)
-
-    first <- !file.exists(tempfile)
-    write.table(d, tempfile, row.names=FALSE, append=!first, col.names=first, sep=",")
-  }
+    fbase <- basename(filelist[f])
+    if(fbase %in% files_we_have_already_seen) {
+      printlog("We have already processed", fbase, "- SKIPPING")
+      next
+    } else {
+      files_we_have_already_seen <<- c(files_we_have_already_seen, fbase)
+      
+      d <- read_outputfile(file.path(input_path, filelist[f]))
+      d$injection <- injection
+      d$rep <- rep
+      d$trt <- trt
+      
+      if(!is.na(ncolumns) & ncol(d) != ncolumns)
+        stop("Columns differ between files!")
+      ncolumns <- ncol(d)
+      
+      first <- !file.exists(tempfile)
+      write.table(d, tempfile, row.names=FALSE, append=!first, col.names=first, sep=",")
+    } # if
+  } # for
 }
 
 
