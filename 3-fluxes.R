@@ -102,28 +102,32 @@ print_dims(fluxdata)
 
 # ----------------------------------------------------------------------
 
-printlog("Computing pre-injection rates...")
-fd_preinjection <- fluxdata %>%
-  filter(ELAPSED_TIME <= 0) %>%
+printlog("Computing pre-injection rates for Injection 1...")
+fluxdata %>%
+  filter(ELAPSED_TIME <= 0 & Injection == 1) %>%
   group_by(Rep, DWP_core) %>%
-  summarise(CO2_flux_umol_g_s_pre = mean(CO2_flux_umol_g_s, na.rm = TRUE),
-            CO2_flux_umol_g_s_presd = sd(CO2_flux_umol_g_s, na.rm = TRUE),
-            CH4_flux_umol_g_s_pre = mean(CH4_flux_umol_g_s, na.rm = TRUE),
-            CH4_flux_umol_g_s_presd = sd(CH4_flux_umol_g_s, na.rm = TRUE))
+  summarise(CO2_flux_mgC_s_pre = mean(CO2_flux_mgC_s, na.rm = TRUE),
+            CO2_flux_mgC_s_presd = sd(CO2_flux_mgC_s, na.rm = TRUE),
+            CH4_flux_mgC_s_pre = mean(CH4_flux_mgC_s, na.rm = TRUE),
+            CH4_flux_mgC_s_presd = sd(CH4_flux_mgC_s, na.rm = TRUE)) ->
+  fd_preinjection
 
 # Do a bunch of QC plots check pre- versus postinjection fluxes
-p <- qplot(as.numeric(DWP_core), CO2_flux_umol_g_s_pre, data=fd_preinjection)
+p <- qplot(as.numeric(DWP_core), CO2_flux_mgC_s_pre, data = fd_preinjection)
 p <- p + geom_text(aes(label = DWP_core), size = 4, vjust = -0.5, hjust = -0.5)
-p <- p + geom_errorbar(aes(ymin = CO2_flux_umol_g_s_pre - CO2_flux_umol_g_s_presd,
-                           ymax = CO2_flux_umol_g_s_pre + CO2_flux_umol_g_s_presd))
+p <- p + ggtitle("Pre-injection CO2 flux rates by core")
+p <- p + geom_errorbar(aes(ymin = CO2_flux_mgC_s_pre - CO2_flux_mgC_s_presd,
+                           ymax = CO2_flux_mgC_s_pre + CO2_flux_mgC_s_presd))
 print(p)
 save_plot("QC_CO2_preinjection")
-p <- qplot(as.numeric(DWP_core), CH4_flux_umol_g_s_pre, data=fd_preinjection)
+p <- qplot(as.numeric(DWP_core), CH4_flux_mgC_s_pre, data = fd_preinjection)
 p <- p + geom_text(aes(label = DWP_core), size = 4, vjust = -0.5, hjust = -0.5)
-p <- p + geom_errorbar(aes(ymin = CH4_flux_umol_g_s_pre - CH4_flux_umol_g_s_presd,
-                           ymax = CH4_flux_umol_g_s_pre + CH4_flux_umol_g_s_presd))
+p <- p + ggtitle("Pre-injection CH4 flux rates by core")
+p <- p + geom_errorbar(aes(ymin = CH4_flux_mgC_s_pre - CH4_flux_mgC_s_presd,
+                           ymax = CH4_flux_mgC_s_pre + CH4_flux_mgC_s_presd))
 print(p)
 save_plot("QC_CH4_preinjection")
+
 
 for(dwp in unique(fluxdata$DWP_core)) {
   printlog("QC preinjection for core", dwp)
@@ -162,18 +166,29 @@ print_dims(fluxdata)
 # ----------------------------------------------------------------------
 
 printlog("Computing cumulative C emission...")
-fluxdata <- fluxdata %>%
+fluxdata %>%
   filter(ELAPSED_TIME > 0) %>% # cumulative emissions only after injection
-  select(Rep, DWP_core, ELAPSED_TIME, CO2_flux_mgC_s, CH4_flux_mgC_s) %>%
+  select(Rep, DWP_core, ELAPSED_TIME, CO2_flux_mgC_s, CH4_flux_mgC_s, CO2_flux_mgC_s_pre, CH4_flux_mgC_s_pre) %>%
   group_by(Rep, DWP_core) %>%
   arrange(ELAPSED_TIME) %>%
-  mutate(CO2_flux_mgC = CO2_flux_mgC_s * (ELAPSED_TIME - lag(ELAPSED_TIME)),
+  mutate(deltaTime = ELAPSED_TIME - lag(ELAPSED_TIME),
+         # extrapolate pre-injection rates to cumulative fluxes
+         CO2_flux_mgC_pre = CO2_flux_mgC_s_pre * deltaTime,
+         cumCO2_flux_mgC_pre = c(0, cumsum(CO2_flux_mgC_pre[!is.na(CO2_flux_mgC_pre)])),
+         CH4_flux_mgC_pre = CH4_flux_mgC_s_pre * deltaTime,
+         cumCH4_flux_mgC_pre = c(0, cumsum(CH4_flux_mgC_pre[!is.na(CH4_flux_mgC_pre)])),
+  
+         # calculate post-injection cumulative fluxes
+         CO2_flux_mgC = CO2_flux_mgC_s * deltaTime,
          cumCO2_flux_mgC = c(0, cumsum(CO2_flux_mgC[!is.na(CO2_flux_mgC)])),
-         CH4_flux_mgC = CH4_flux_mgC_s * (ELAPSED_TIME - lag(ELAPSED_TIME)),
+         CH4_flux_mgC = CH4_flux_mgC_s * deltaTime,
          cumCH4_flux_mgC = c(0, cumsum(CH4_flux_mgC[!is.na(CH4_flux_mgC)]))) %>%
-  select(-CO2_flux_mgC_s, -CH4_flux_mgC_s, -CO2_flux_mgC, -CH4_flux_mgC) %>%
-  # merge back into main data
-  left_join(fluxdata, ., by=c("Rep", "DWP_core", "ELAPSED_TIME"))
+  # remove unneeded fields
+  select(-CO2_flux_mgC_s, -CH4_flux_mgC_s, -CO2_flux_mgC, -CH4_flux_mgC,
+         -CO2_flux_mgC_s_pre, -CH4_flux_mgC_s_pre, -CO2_flux_mgC_pre, -CH4_flux_mgC_pre) %>%
+  # ...and merge back into main data
+  left_join(fluxdata, ., by=c("Rep", "DWP_core", "ELAPSED_TIME")) ->
+  fluxdata
 
 print_dims(fluxdata)
 

@@ -1,11 +1,11 @@
 # Process Picarro data for DWP lab experiment
-# Ben Bond-Lamberty April 2015
+# Ben Bond-Lamberty December 2015
 
 source("0-functions.R")
 
 SCRIPTNAME  	<- "4-plots.R"
-FLUXDATA      <- paste0(OUTPUT_DIR, "fluxdata.csv")  # output from script 2
-FLUXDATA2      <- paste0(OUTPUT_DIR, "fluxdata_247check.csv")  # output from script 2
+FLUXDATA      <- paste0(OUTPUT_DIR, "fluxdata.csv")  # output from script 3
+FLUXDATA2      <- paste0(OUTPUT_DIR, "fluxdata_247check.csv")  # output from script 3
 
 
 # ==============================================================================
@@ -34,11 +34,21 @@ fluxdata %>%
 
 printlog("Plotting...")
 
+# Summary by depth and core of fluxes and pre-injection rates
+
+fluxdata$DepthCore <- paste(fluxdata$Depth_cm, fluxdata$DWP_core)
+p <- qplot(ELAPSED_TIME/60/60, cumCO2_flux_mgC, color=Depth_cm, data=fluxdata, geom="line") + facet_wrap(~DepthCore) 
+p <- p + geom_line(aes(y=cumCO2_flux_mgC_pre), linetype = 2)
+p <- p + xlab("Time since injection (hr)") 
+print(p)
+save_plot("depth_core")
+
 # Summary by depth
 
 boxplotdata <- melt(fluxdata, id.vars="Depth_cm", measure.vars = c("CO2_flux_umol_g_s", "CH4_flux_umol_g_s"))
 p <- ggplot(boxplotdata, aes(Depth_cm, value * 60 * 60 * 24)) + geom_boxplot() + facet_grid(variable~., scales="free")
-p <- p + ylab("mg C/g soil/day")
+p <- p + ylab("mg C/g soil/day") + ggtitle("Gross fluxes")
+p <- p + coord_flip() + scale_x_discrete(limits=rev(levels(fluxdata$Depth_cm)))
 print(p)
 save_plot("depth_boxplot")
 
@@ -50,12 +60,14 @@ print(summary(m_CH4))
 # Summary by depth and site
 p <- ggplot(fluxdata, aes(Depth_cm, CO2_flux_umol_g_s * 60 * 60 * 24)) + geom_boxplot() 
 p <- p + facet_grid(Site ~ .)
-p <- p + ylab("CO2 flux (mg C/g soil/day)")
+p <- p + ylab("CO2 flux (mg C/g soil/day)") + ggtitle("Gross CO2 fluxes")
+p <- p + coord_flip() + scale_x_discrete(limits=rev(levels(fluxdata$Depth_cm)))
 print(p)
 save_plot("depth_CO2_boxplot")
 p <- ggplot(fluxdata, aes(Depth_cm, CH4_flux_umol_g_s * 60 * 60 * 24)) + geom_boxplot() 
 p <- p + facet_grid(Site ~ .)
-p <- p + ylab("CH4 flux (mg C/g soil/day)")
+p <- p + ylab("CH4 flux (mg C/g soil/day)") + ggtitle("Gross CH4 fluxes")
+p <- p + coord_flip() + scale_x_discrete(limits=rev(levels(fluxdata$Depth_cm)))
 print(p)
 save_plot("depth_CH4_boxplot")
 
@@ -71,22 +83,22 @@ fluxdata_labels <- fluxdata %>%
 
 p <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, cumCO2_flux_mgC, color=Trt, group=DWP_core))
 p <- p + geom_line() + facet_wrap(~Depth_cm)
-p <- p + xlab("Elapsed time (hours)")
-p <- p + geom_text(data=fluxdata_labels, aes(label=DWP_core), vjust=-0.5, size=3, show_guide=FALSE)
+p <- p + xlab("Elapsed time (hours)") + ggtitle("Gross CO2 fluxes")
+p <- p + geom_text(data=fluxdata_labels, aes(label=DWP_core), vjust=-0.5, size=3, show.legend = FALSE)
 print(p)
 save_plot("cumulative_CO2")
 
 p <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, cumCH4_flux_mgC, color=Trt, group=DWP_core))
 p <- p + geom_line() + facet_wrap(~ Depth_cm)
-p <- p + xlab("Elapsed time (hours)")
-p <- p + geom_text(data=fluxdata_labels, aes(label=DWP_core), vjust=-0.5, size=3, show_guide=FALSE)
+p <- p + xlab("Elapsed time (hours)") + ggtitle("Gross CH4 fluxes")
+p <- p + geom_text(data=fluxdata_labels, aes(label=DWP_core), vjust=-0.5, size=3, show.legend = FALSE)
 print(p)
 save_plot("cumulative_CH4")
 
 p <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, cumCO2_flux_mgC + cumCH4_flux_mgC, color=Depth_cm, group=DWP_core))
 p <- p + geom_line() + facet_wrap(~Depth_cm)
-p <- p + xlab("Elapsed time (hours)")
-p <- p + geom_text(data=fluxdata_labels, aes(label=DWP_core), vjust=-0.5, size=3, show_guide=FALSE)
+p <- p + xlab("Elapsed time (hours)") + ggtitle("Gross C fluxes")
+p <- p + geom_text(data=fluxdata_labels, aes(label=DWP_core), vjust=-0.5, size=3, show.legend = FALSE)
 print(p)
 save_plot("cumulative_C")
 
