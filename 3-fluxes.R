@@ -130,46 +130,60 @@ save_plot("QC_CH4_preinjection")
 
 
 for(dwp in unique(fluxdata$DWP_core)) {
-  printlog("QC preinjection for core", dwp)
   d <- subset(fluxdata, DWP_core == dwp)
-  p1 <- ggplot(d, aes(ELAPSED_TIME/60/60, CO2_flux_umol_g_s, color = Trt)) + geom_point()
-  p1 <- p1 + xlab("Time since injection (hr)")
-  p1 <- p1 + scale_color_manual(values = c("red", "blue"))
-  p1 <- p1 + geom_vline(xintercept = 0, linetype = 2) + ggtitle(paste("DWP core", dwp))
-  p1 <- p1 + geom_hline(yintercept = mean(d[d$ELAPSED_TIME <= 0, "CO2_flux_umol_g_s"], na.rm = TRUE), color="red", linetype = 2) 
-  p1 <- p1 + geom_hline(yintercept = mean(d[d$ELAPSED_TIME > 0, "CO2_flux_umol_g_s"], na.rm = TRUE), color="blue", linetype = 2) 
-  p2 <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, CO2_flux_umol_g_s, group = DWP_core)) 
-  p2 <- p2 + geom_line(alpha = I(.5)) + geom_line(data = d, color = "red")
-  pdf(file.path(outputdir(), paste0("QC_core_", dwp, "_CO2.pdf")))
-  multiplot(p1, p2)
-  dev.off()
-  # CH4
-  p1 <- ggplot(d, aes(ELAPSED_TIME/60/60, CH4_flux_umol_g_s, color=Trt)) + geom_point()
-  p1 <- p1 + xlab("Time since injection (hr)") 
-  p1 <- p1 + scale_color_manual(values = c("red", "blue")) + scale_y_log10()
-  p1 <- p1 + geom_vline(xintercept = 0, linetype = 2) + ggtitle(paste("DWP core", dwp))
-  p1 <- p1 + geom_hline(yintercept = mean(d[d$ELAPSED_TIME <= 0, "CH4_flux_umol_g_s"], na.rm = TRUE), color="red", linetype = 2) 
-  p1 <- p1 + geom_hline(yintercept = mean(d[d$ELAPSED_TIME > 0, "CH4_flux_umol_g_s"], na.rm = TRUE), color="blue", linetype = 2) 
-  p2 <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, CH4_flux_umol_g_s, group = DWP_core)) 
-  p2 <- p2 + xlab("Time since injection (hr)")
-  p2 <- p2 + geom_line(alpha = I(.5)) + geom_line(data = d, color = "red") + scale_y_log10()
-  pdf(file.path(outputdir(), paste0("QC_core_", dwp, "_CH4.pdf")))
-  multiplot(p1, p2)
-  dev.off()
+  d_depth <- unique(d$Depth_cm)
+  d_samedepth <- subset(fluxdata, Depth_cm == d_depth)
+  printlog("QC preinjection for core", dwp)
   
+  doplot <- function(gas, d, d_samedepth) {
+    gasvar <- paste0(gas, "_flux_umol_g_s")
+    
+    p1 <- ggplot(d, aes_string("ELAPSED_TIME/60/60", gasvar, color = "Trt")) + geom_point()
+    p1 <- p1 + xlab("Time since injection (hr)")
+    p1 <- p1 + scale_color_manual(values = c("red", "blue"))
+    p1 <- p1 + geom_vline(xintercept = 0, linetype = 2) + ggtitle(paste(gas, "- DWP core", dwp, unique(d$Site), d_depth))
+    meanpre <- mean(d[d$ELAPSED_TIME <= 0, gasvar], na.rm = TRUE)
+    meanpost <- mean(d[d$ELAPSED_TIME > 0, gasvar], na.rm = TRUE)
+    p1 <- p1 + annotate("segment", x = -Inf, xend = 0, y = meanpre, yend = meanpre, color = "blue", linetype = 2)
+    p1 <- p1 + annotate("segment", x = 0, xend = Inf, y = meanpost, yend = meanpost, color = "red", linetype = 2)
+    p2 <- ggplot(d_samedepth, aes_string("ELAPSED_TIME/60/60", gasvar, group = "DWP_core")) 
+    p2 <- p2 + geom_line(alpha = I(.5)) + geom_line(data = d, color = "red")
+    p2 <- p2 + xlab("Time since injection (hr)") + ggtitle(paste("...compared to all other", d_depth, "cores"))
+    pdf(file.path(outputdir(), paste0("QC_core_", dwp, "_", gas, ".pdf")))
+    multiplot(p1, p2)
+    dev.off()
+  }
+  
+  doplot("CH4", d, d_samedepth)
+  doplot("CO2", d, d_samedepth)
 }
 
-# merge back into main data
+# ----------------------------------------------------------------------
+# December 4, 2015: Some cores are exhibiting wacky pre-injection fluxes.
+# Remove them for now (until we decide what to do; see issue #12) TODO
+fd_preinjection[fd_preinjection$DWP_core == 16, "CH4_flux_mgC_s_pre"] <- NA
+fd_preinjection[fd_preinjection$DWP_core == 35, "CH4_flux_mgC_s_pre"] <- NA
+fd_preinjection[fd_preinjection$DWP_core == 9, "CH4_flux_mgC_s_pre"] <- NA
+fd_preinjection[fd_preinjection$DWP_core == 4, "CO2_flux_mgC_s_pre"] <- NA
+fd_preinjection[fd_preinjection$DWP_core == 7, "CO2_flux_mgC_s_pre"] <- NA
+fd_preinjection[fd_preinjection$DWP_core == 9, "CO2_flux_mgC_s_pre"] <- NA
+
+# Merge the preinjection means back into main data
 fluxdata <- left_join(fluxdata, fd_preinjection, by=c("Rep", "DWP_core"))
 print_dims(fluxdata)
+
+# Just remove 4, 7, 9 entirely for now; see issue #12 (TODO)
+fluxdata <- filter(fluxdata, !(DWP_core %in% c(2, 4, 7, 9, 51)))
+
 
 # ----------------------------------------------------------------------
 
 printlog("Computing cumulative C emission...")
 fluxdata %>%
   filter(ELAPSED_TIME > 0) %>% # cumulative emissions only after injection
-  select(Rep, DWP_core, ELAPSED_TIME, CO2_flux_mgC_s, CH4_flux_mgC_s, CO2_flux_mgC_s_pre, CH4_flux_mgC_s_pre) %>%
-  group_by(Rep, DWP_core) %>%
+  select(Injection, Rep, DWP_core, ELAPSED_TIME, CO2_flux_mgC_s, CH4_flux_mgC_s, 
+         CO2_flux_mgC_s_pre, CH4_flux_mgC_s_pre) %>%
+  group_by(Injection, Rep, DWP_core) %>%
   arrange(ELAPSED_TIME) %>%
   mutate(deltaTime = ELAPSED_TIME - lag(ELAPSED_TIME),
          # extrapolate pre-injection rates to cumulative fluxes
@@ -177,17 +191,21 @@ fluxdata %>%
          cumCO2_flux_mgC_pre = c(0, cumsum(CO2_flux_mgC_pre[!is.na(CO2_flux_mgC_pre)])),
          CH4_flux_mgC_pre = CH4_flux_mgC_s_pre * deltaTime,
          cumCH4_flux_mgC_pre = c(0, cumsum(CH4_flux_mgC_pre[!is.na(CH4_flux_mgC_pre)])),
-  
+         
          # calculate post-injection cumulative fluxes
          CO2_flux_mgC = CO2_flux_mgC_s * deltaTime,
          cumCO2_flux_mgC = c(0, cumsum(CO2_flux_mgC[!is.na(CO2_flux_mgC)])),
          CH4_flux_mgC = CH4_flux_mgC_s * deltaTime,
-         cumCH4_flux_mgC = c(0, cumsum(CH4_flux_mgC[!is.na(CH4_flux_mgC)]))) %>%
+         cumCH4_flux_mgC = c(0, cumsum(CH4_flux_mgC[!is.na(CH4_flux_mgC)])),
+         
+         # calculate net fluxes
+         net_cum_CO2_mgC = cumCO2_flux_mgC - cumCO2_flux_mgC_pre,
+         net_cum_CH4_mgC = cumCH4_flux_mgC - cumCH4_flux_mgC_pre) %>%
   # remove unneeded fields
   select(-CO2_flux_mgC_s, -CH4_flux_mgC_s, -CO2_flux_mgC, -CH4_flux_mgC,
          -CO2_flux_mgC_s_pre, -CH4_flux_mgC_s_pre, -CO2_flux_mgC_pre, -CH4_flux_mgC_pre) %>%
   # ...and merge back into main data
-  left_join(fluxdata, ., by=c("Rep", "DWP_core", "ELAPSED_TIME")) ->
+  left_join(fluxdata, ., by=c("Injection", "Rep", "DWP_core", "ELAPSED_TIME")) ->
   fluxdata
 
 print_dims(fluxdata)
@@ -195,15 +213,17 @@ print_dims(fluxdata)
 # ...and change NAs (pre-injection) to zero
 fluxdata$cumCO2_flux_mgC[is.na(fluxdata$cumCO2_flux_mgC)] <- 0.0
 fluxdata$cumCH4_flux_mgC[is.na(fluxdata$cumCH4_flux_mgC)] <- 0.0
+fluxdata$net_cum_CO2_mgC[is.na(fluxdata$net_cum_CO2_mgC)] <- 0.0
+fluxdata$net_cum_CH4_mgC[is.na(fluxdata$net_cum_CH4_mgC)] <- 0.0
 
 # ----------------------------------------------------------------------
-
 # We ran a subsequent check using cores, 2, 4, and 7, monitoring them 
 # continuously to make sure we didn't miss any methane or CO2 'burps'. 
 # Split off those data separately.
 printlog("Splitting data by injection...")
 fluxdata_247check <- filter(fluxdata, Injection == 2)
 fluxdata <- filter(fluxdata, Injection != 2)
+
 
 save_data(fluxdata, scriptfolder=FALSE)
 save_data(fluxdata_247check, scriptfolder=FALSE)

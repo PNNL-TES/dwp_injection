@@ -32,6 +32,27 @@ fluxdata %>%
   print()
 
 
+# Total cumulative C by Site, Depth, and gas
+fluxdata %>% 
+  group_by(Site, Depth_cm, DWP_core) %>% 
+  summarise(cum_CO2_mgC = max(net_cum_CO2_mgC, na.rm = TRUE),
+            cum_CH4_mgC = max(net_cum_CH4_mgC, na.rm = TRUE)) %>%
+#  group_by(Site, Depth_cm) %>%
+  summarise(cum_CO2_mgC_sd = sd(cum_CO2_mgC),
+            cum_CO2_mgC = mean(cum_CO2_mgC),
+            cum_CH4_mgC_23 = sd(cum_CH4_mgC),
+            cum_CH4_mgC = mean(cum_CH4_mgC)) -> 
+  cumfluxdata
+
+p <- ggplot(cumfluxdata, aes(Depth_cm, cum_CO2_mgC, fill = Site)) + 
+  geom_bar(stat='identity') + guides(fill = FALSE) +
+  geom_errorbar(aes(ymin = cum_CO2_mgC-cum_CO2_mgC_sd, 
+                    ymax = cum_CO2_mgC + cum_CO2_mgC_sd)) +
+  facet_grid(Site~.)
+print(p)
+save_plot("evolved_C")
+
+
 printlog("Plotting...")
 
 # Summary by depth and core of fluxes and pre-injection rates
