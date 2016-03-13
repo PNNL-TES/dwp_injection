@@ -128,6 +128,16 @@ p <- p + geom_errorbar(aes(ymin = CH4_flux_mgC_s_pre - CH4_flux_mgC_s_presd,
 print(p)
 save_plot("QC_CH4_preinjection")
 
+# Plot everything together, by rep
+p <- qplot(ELAPSED_TIME/60/60, CH4_flux_umol_g_s, data = fluxdata, color = Trt, geom = "line", group = DWP_core) 
+p <- p + facet_wrap(~Rep, scales="free") + geom_vline(xintercept=c(-25, 0), linetype=2)
+print(p)
+save_plot("QC_CH4_rep")
+p <- qplot(ELAPSED_TIME/60/60, CO2_flux_umol_g_s, data = fluxdata, color = Trt, geom = "line", group = DWP_core) 
+p <- p + facet_wrap(~Rep, scales="free") + geom_vline(xintercept=c(-25, 0), linetype=2)
+print(p)
+save_plot("QC_CO2_rep")
+
 
 for(dwp in unique(fluxdata$DWP_core)) {
   dall <- subset(fluxdata, DWP_core == dwp)
