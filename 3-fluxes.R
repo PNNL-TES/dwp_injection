@@ -9,7 +9,7 @@ SUMMARYDATA      <- file.path(OUTPUT_DIR, "summarydata.csv")  # output from scri
 # ==============================================================================
 # Main 
 
-sink(file.path(outputdir(), paste0(SCRIPTNAME, ".log.txt")), split=T) # open log
+openlog(file.path(outputdir(), paste0(SCRIPTNAME, ".log.txt")), sink = TRUE) # open log
 
 printlog("Welcome to", SCRIPTNAME)
 
@@ -130,32 +130,36 @@ save_plot("QC_CH4_preinjection")
 
 
 for(dwp in unique(fluxdata$DWP_core)) {
-  d <- subset(fluxdata, DWP_core == dwp)
-  d_depth <- unique(d$Depth_cm)
-  d_samedepth <- subset(fluxdata, Depth_cm == d_depth)
-  printlog("QC preinjection for core", dwp)
-  
-  doplot <- function(gas, d, d_samedepth) {
-    gasvar <- paste0(gas, "_flux_umol_g_s")
+  dall <- subset(fluxdata, DWP_core == dwp)
+  for(r in unique(dall$Rep)) {
+    d <- subset(dall, Rep == r)
+    d_depth <- unique(d$Depth_cm)
+    d_samedepth <- subset(fluxdata, Depth_cm == d_depth)
+    d_samedepth$core_rep <- paste(d_samedepth$DWP_core, d_samedepth$Rep)
+    printlog("QC preinjection for core", dwp, "rep", r)
     
-    p1 <- ggplot(d, aes_string("ELAPSED_TIME/60/60", gasvar, color = "Trt")) + geom_point()
-    p1 <- p1 + xlab("Time since injection (hr)")
-    p1 <- p1 + scale_color_manual(values = c("red", "blue"))
-    p1 <- p1 + geom_vline(xintercept = 0, linetype = 2) + ggtitle(paste(gas, "- DWP core", dwp, unique(d$Site), d_depth))
-    meanpre <- mean(d[d$ELAPSED_TIME <= 0, gasvar], na.rm = TRUE)
-    meanpost <- mean(d[d$ELAPSED_TIME > 0, gasvar], na.rm = TRUE)
-    p1 <- p1 + annotate("segment", x = -Inf, xend = 0, y = meanpre, yend = meanpre, color = "blue", linetype = 2)
-    p1 <- p1 + annotate("segment", x = 0, xend = Inf, y = meanpost, yend = meanpost, color = "red", linetype = 2)
-    p2 <- ggplot(d_samedepth, aes_string("ELAPSED_TIME/60/60", gasvar, group = "DWP_core")) 
-    p2 <- p2 + geom_line(alpha = I(.5)) + geom_line(data = d, color = "red")
-    p2 <- p2 + xlab("Time since injection (hr)") + ggtitle(paste("...compared to all other", d_depth, "cores"))
-    pdf(file.path(outputdir(), paste0("QC_core_", dwp, "_", gas, ".pdf")))
-    multiplot(p1, p2)
-    dev.off()
+    doplot <- function(gas, d, d_samedepth) {
+      gasvar <- paste0(gas, "_flux_umol_g_s")
+      
+      p1 <- ggplot(d, aes_string("ELAPSED_TIME/60/60", gasvar, color = "Trt")) + geom_point()
+      p1 <- p1 + xlab("Time since injection (hr)")
+      p1 <- p1 + scale_color_manual(values = c("red", "blue"))
+      p1 <- p1 + geom_vline(xintercept = 0, linetype = 2) + ggtitle(paste(gas, "- DWP core", dwp, unique(d$Rep), unique(d$Site), d_depth))
+      meanpre <- mean(d[d$ELAPSED_TIME <= 0, gasvar], na.rm = TRUE)
+      meanpost <- mean(d[d$ELAPSED_TIME > 0, gasvar], na.rm = TRUE)
+      p1 <- p1 + annotate("segment", x = -Inf, xend = 0, y = meanpre, yend = meanpre, color = "blue", linetype = 2)
+      p1 <- p1 + annotate("segment", x = 0, xend = Inf, y = meanpost, yend = meanpost, color = "red", linetype = 2)
+      p2 <- ggplot(d_samedepth, aes_string("ELAPSED_TIME/60/60", gasvar, group = "core_rep")) 
+      p2 <- p2 + geom_line(alpha = I(.5)) + geom_line(data = d, color = "red", group = 1)
+      p2 <- p2 + xlab("Time since injection (hr)") + ggtitle(paste("...compared to all other", d_depth, "cores"))
+      pdf(file.path(outputdir(), paste0("QC_core_", dwp, "_", r, "_", gas, ".pdf")))
+      multiplot(p1, p2)
+      dev.off()
+    }
+    
+    doplot("CH4", d, d_samedepth)
+    doplot("CO2", d, d_samedepth)
   }
-  
-  doplot("CH4", d, d_samedepth)
-  doplot("CO2", d, d_samedepth)
 }
 
 # ----------------------------------------------------------------------
@@ -229,5 +233,4 @@ save_data(fluxdata, scriptfolder=FALSE)
 save_data(fluxdata_247check, scriptfolder=FALSE)
 
 printlog("All done with", SCRIPTNAME)
-print(sessionInfo())
-sink() # close log
+closelog() # close log
