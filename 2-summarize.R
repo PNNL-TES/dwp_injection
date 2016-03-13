@@ -9,12 +9,12 @@ RAWDATA      <- paste0(OUTPUT_DIR, "rawdata.csv.gz")  # output from script 1
 # ==============================================================================
 # Main 
 
-sink(file.path(outputdir(), paste0(SCRIPTNAME, ".log.txt")), split=T) # open log
+openlog(file.path(outputdir(), paste0(SCRIPTNAME, ".log.txt")), sink = TRUE) # open log
 
 printlog("Welcome to", SCRIPTNAME)
 
 printlog("Reading in raw data...")
-rawdata <- gzfile(RAWDATA) %>% readr::read_csv()
+rawdata <- gzfile(RAWDATA) %>% readr::read_csv(progress = FALSE)
 print_dims(rawdata)
 print(summary(rawdata))
 
@@ -148,7 +148,7 @@ summarydata$Source[summarydata$DWP_core == "CH4 blank"] <- "Blank"
 printlog("Loading field data and merging...")
 fielddata <- read_csv("data/DWP Core field data.csv")
 fielddata$Notes <- fielddata$SampleDate <- NULL
-summarydata <- merge(summarydata, fielddata, all.x = TRUE)
+summarydata <- merge(summarydata, fielddata, all.x = TRUE, by = "DWP_core")
 summarydata$Depth_cm[summarydata$Source == "Ambient"] <- "Ambient"
 summarydata$Depth_cm[summarydata$Source == "Blank"] <- "Blank"
 
@@ -175,5 +175,4 @@ summarydata$ELAPSED_TIME <- with(summarydata, as.numeric(difftime(DATETIME, STAR
 save_data(summarydata, scriptfolder=FALSE)
 
 printlog("All done with", SCRIPTNAME)
-print(sessionInfo())
-sink() # close log
+closelog() # close log

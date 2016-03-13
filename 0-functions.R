@@ -13,14 +13,6 @@ OUTPUT_DIR		<- "outputs/"
 SEPARATOR		<- "-------------------"
 
 # -----------------------------------------------------------------------------
-# Time-stamped output function
-printlog <- function(msg="", ..., ts=TRUE, cr=TRUE) {
-  if(ts) cat(date(), " ")
-  cat(msg, ...)
-  if(cr) cat("\n")
-} # printlog
-
-# -----------------------------------------------------------------------------
 # Print dimensions of data frame
 print_dims <- function(d, dname=deparse(substitute(d))) {
   stopifnot(is.data.frame(d))
