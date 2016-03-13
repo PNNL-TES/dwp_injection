@@ -68,7 +68,7 @@ process_directory <- function(input_path, tempfile, injection, rep, trt) {
 # ==============================================================================
 # Main 
 
-sink(file.path(outputdir(), paste0(SCRIPTNAME, ".log.txt")), split=T) # open log
+openlog(file.path(outputdir(), paste0(SCRIPTNAME, ".log.txt")), sink = TRUE) # open log
 
 printlog("Welcome to", SCRIPTNAME)
 
@@ -101,13 +101,10 @@ rawdata <- readr::read_csv(tf)
 print_dims(rawdata)
 print(summary(rawdata))
 
-rawdata %>% group_by(rep,trt) %>% summarise(n()) %>% print()
-
-rawdata %>% group_by(rep,trt, MPVPosition) %>% summarise(n()) %>% as.data.frame() %>% print()
+rawdata %>% group_by(rep, trt) %>% summarise(n()) %>% print()
 
 printlog("Writing output file...")
 save_data(rawdata, scriptfolder=FALSE, gzip=TRUE)
 
 printlog("All done with", SCRIPTNAME)
-print(sessionInfo())
-sink() # close log
+closelog()
