@@ -168,7 +168,7 @@ summarydata$MinDepth_cm <- as.numeric(str_extract(summarydata$Depth_cm, "^[0-9]*
 
 printlog("Computing STARTDATETIME (UTC) and ELAPSEDTIME...")
 summarydata$STARTDATETIME <- with_tz(mdy_hm(summarydata$Start, tz = "America/Los_Angeles"), tzone = "UTC")
-summarydata$ELAPSED_TIME <- with(summarydata, as.numeric(difftime(DATETIME, STARTDATETIME, units = "secs")))
+summarydata$ELAPSED_TIME_s <- with(summarydata, as.numeric(difftime(DATETIME, STARTDATETIME, units = "secs")))
 
 # Done!
 
