@@ -58,7 +58,7 @@ printlog("Plotting...")
 # Summary by depth and core of fluxes and pre-injection rates
 
 fluxdata$DepthCore <- paste(fluxdata$Depth_cm, fluxdata$DWP_core)
-p <- qplot(ELAPSED_TIME/60/60, cumCO2_flux_mgC, color=Depth_cm, data=fluxdata, geom="line") + facet_wrap(~DepthCore) 
+p <- qplot(ELAPSED_TIME_s/60/60, cumCO2_flux_mgC, color=Depth_cm, data=fluxdata, geom="line") + facet_wrap(~DepthCore) 
 p <- p + geom_line(aes(y=cumCO2_flux_mgC_pre), linetype = 2)
 p <- p + xlab("Time since injection (hr)") 
 print(p)
@@ -97,26 +97,26 @@ save_plot("depth_CH4_boxplot")
 
 fluxdata_labels <- fluxdata %>%
   group_by(Trt, Rep, DWP_core, Depth_cm) %>%
-  arrange(ELAPSED_TIME) %>%
-  summarise(ELAPSED_TIME = last(ELAPSED_TIME),
+  arrange(ELAPSED_TIME_s) %>%
+  summarise(ELAPSED_TIME_s = last(ELAPSED_TIME_s),
             cumCO2_flux_mgC = last(cumCO2_flux_mgC),
             cumCH4_flux_mgC = last(cumCH4_flux_mgC))
 
-p <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, cumCO2_flux_mgC, color=Trt, group=DWP_core))
+p <- ggplot(fluxdata, aes(ELAPSED_TIME_s/60/60, cumCO2_flux_mgC, color=Trt, group=DWP_core))
 p <- p + geom_line() + facet_wrap(~Depth_cm)
 p <- p + xlab("Elapsed time (hours)") + ggtitle("Gross CO2 fluxes")
 p <- p + geom_text(data=fluxdata_labels, aes(label=DWP_core), vjust=-0.5, size=3, show.legend = FALSE)
 print(p)
 save_plot("cumulative_CO2")
 
-p <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, cumCH4_flux_mgC, color=Trt, group=DWP_core))
+p <- ggplot(fluxdata, aes(ELAPSED_TIME_s/60/60, cumCH4_flux_mgC, color=Trt, group=DWP_core))
 p <- p + geom_line() + facet_wrap(~ Depth_cm)
 p <- p + xlab("Elapsed time (hours)") + ggtitle("Gross CH4 fluxes")
 p <- p + geom_text(data=fluxdata_labels, aes(label=DWP_core), vjust=-0.5, size=3, show.legend = FALSE)
 print(p)
 save_plot("cumulative_CH4")
 
-p <- ggplot(fluxdata, aes(ELAPSED_TIME/60/60, cumCO2_flux_mgC + cumCH4_flux_mgC, color=Depth_cm, group=DWP_core))
+p <- ggplot(fluxdata, aes(ELAPSED_TIME_s/60/60, cumCO2_flux_mgC + cumCH4_flux_mgC, color=Depth_cm, group=DWP_core))
 p <- p + geom_line() + facet_wrap(~Depth_cm)
 p <- p + xlab("Elapsed time (hours)") + ggtitle("Gross C fluxes")
 p <- p + geom_text(data=fluxdata_labels, aes(label=DWP_core), vjust=-0.5, size=3, show.legend = FALSE)
@@ -127,23 +127,27 @@ save_plot("cumulative_C")
 # Pre and post-injection comparisons
 
 fluxdata$SamplePoint <- as.factor(fluxdata$SamplePoint)
-p <- qplot(ELAPSED_TIME/60/60, CO2_flux_umol_g_s, data=fluxdata, group=DWP_core, color=Site) 
-p <- p + geom_vline(linetype=2) + facet_wrap(~Depth_cm, scales="free") + geom_smooth()
+p <- qplot(ELAPSED_TIME_s/60/60, CO2_flux_umol_g_s, data=fluxdata, group=DWP_core, color=Site) 
+p <- p + geom_vline(xintercept = 0, linetype = 2) + 
+  facet_wrap(~Depth_cm, scales="free") + geom_smooth()
 p <- p + xlab("Elapsed time (hrs)")
 print(p)
 save_plot("CO2_flux_site_time")
-p <- qplot(ELAPSED_TIME/60/60, CH4_flux_umol_g_s, data=fluxdata, group=DWP_core, color=Site) 
-p <- p + geom_vline(linetype=2) + facet_wrap(~Depth_cm, scales="free") + geom_smooth()
+p <- qplot(ELAPSED_TIME_s/60/60, CH4_flux_umol_g_s, data=fluxdata, group=DWP_core, color=Site) 
+p <- p + geom_vline(xintercept = 0, linetype = 2) + 
+  facet_wrap(~Depth_cm, scales="free") + geom_smooth()
 p <- p + xlab("Elapsed time (hrs)")
 print(p)
 save_plot("CH4_flux_site_time")
-p <- qplot(ELAPSED_TIME/60/60, CO2_flux_umol_g_s, data=fluxdata, group=DWP_core, color=SamplePoint, shape=Site) 
-p <- p + geom_vline(linetype=2) + facet_wrap(~Depth_cm, scales="free") + geom_smooth()
+p <- qplot(ELAPSED_TIME_s/60/60, CO2_flux_umol_g_s, data=fluxdata, group=DWP_core, color=SamplePoint, shape=Site) 
+p <- p + geom_vline(xintercept = 0, linetype = 2) + 
+  facet_wrap(~Depth_cm, scales="free") + geom_smooth()
 p <- p + xlab("Elapsed time (hrs)")
 print(p)
 save_plot("CO2_flux_sample_time")
-p <- qplot(ELAPSED_TIME/60/60, CH4_flux_umol_g_s, data=fluxdata, group=DWP_core, color=SamplePoint, shape=Site) 
-p <- p + geom_vline(linetype=2) + facet_wrap(~Depth_cm, scales="free") + geom_smooth()
+p <- qplot(ELAPSED_TIME_s/60/60, CH4_flux_umol_g_s, data=fluxdata, group=DWP_core, color=SamplePoint, shape=Site) 
+p <- p + geom_vline(xintercept = 0, linetype = 2) + 
+  facet_wrap(~Depth_cm, scales="free") + geom_smooth()
 p <- p + xlab("Elapsed time (hrs)")
 print(p)
 save_plot("CH4_flux_sample_time")
@@ -154,15 +158,14 @@ fd_summary <- fluxdata %>%
   group_by(Depth_cm, Trt) %>% 
   summarise(CO2 = 60 * 60 * mean(CO2_flux_umol_g_s),
             CH4 = 60 * 60 * mean(CH4_flux_umol_g_s))
-p <- qplot(Depth_cm, CO2, fill=Trt, data=fd_summary, geom="bar", stat="identity", position="dodge")
+p <- ggplot(fd_summary, aes(Depth_cm, CO2, fill = Trt)) + geom_bar(stat="identity", position="dodge")
 p <- p + ylab("Mean CO2 flux (µmol/g/hr")
 print(p)
 save_plot("CO2_flux_comparison")
-p <- qplot(Depth_cm, CH4, fill=Trt, data=fd_summary, geom="bar", stat="identity", position="dodge")
+p <- ggplot(fd_summary, aes(Depth_cm, CH4, fill = Trt)) + geom_bar(stat="identity", position="dodge")
 p <- p + ylab("Mean CH4 flux (µmol/g/hr")
 print(p)
 save_plot("CH4_flux_comparison")
-
 
 
 # We ran a subsequent check using cores, 2, 4, and 7, monitoring them continuously to make sure
@@ -173,10 +176,10 @@ fluxdata_247check <- read_csv(FLUXDATA2)
 
 printlog("Plotting injection 2 data...")
 checkplotdata <- fluxdata_247check %>% 
-  select(ELAPSED_TIME, Depth_cm, DWP_core, cumCO2_flux_mgC, cumCH4_flux_mgC) %>%
+  select(ELAPSED_TIME_s, Depth_cm, DWP_core, cumCO2_flux_mgC, cumCH4_flux_mgC) %>%
   mutate(cumC_flux_mgC = cumCO2_flux_mgC + cumCH4_flux_mgC) %>%
   melt(measure.vars=c("cumCO2_flux_mgC", "cumCH4_flux_mgC", "cumC_flux_mgC"))
-p <- ggplot(checkplotdata, aes(ELAPSED_TIME/60/60, value, color=factor(DWP_core)))
+p <- ggplot(checkplotdata, aes(ELAPSED_TIME_s/60/60, value, color=factor(DWP_core)))
 p <- p + geom_line() + facet_grid(variable ~ ., scales='free_y')
 p <- p + xlab("Elapsed time (hours)") + ylab("Cumulative C flux (mg C)")
 print(p)

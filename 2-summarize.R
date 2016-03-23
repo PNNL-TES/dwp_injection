@@ -14,7 +14,7 @@ openlog(file.path(outputdir(), paste0(SCRIPTNAME, ".log.txt")), sink = TRUE) # o
 printlog("Welcome to", SCRIPTNAME)
 
 printlog("Reading in raw data...")
-rawdata <- gzfile(RAWDATA) %>% readr::read_csv(progress = FALSE)
+rawdata <- readr::read_csv(RAWDATA, progress = FALSE)
 print_dims(rawdata)
 print(summary(rawdata))
 

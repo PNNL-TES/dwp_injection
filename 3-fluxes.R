@@ -105,16 +105,18 @@ fluxdata$CH4_flux_mgC_s <- fluxdata$CH4_flux_umol_g_s * fluxdata$CoreMassPostInj
   1000  # to mg C
 
 print_dims(fluxdata)
+
 printlog("Removing incomplete cases...")
 fluxdata <- fluxdata[complete.cases(fluxdata),]
 print_dims(fluxdata)
+
 
 # ----------------------------------------------------------------------
 
 printlog("Computing pre-injection rates for Injection 1...")
 fluxdata %>%
   filter(ELAPSED_TIME_s <= 0 & Injection == 1) %>%
-  group_by(Rep, DWP_core) %>%
+  group_by(Site, Rep, DWP_core) %>%
   summarise(CO2_flux_mgC_s_pre = mean(CO2_flux_mgC_s, na.rm = TRUE),
             CO2_flux_mgC_s_presd = sd(CO2_flux_mgC_s, na.rm = TRUE),
             CH4_flux_mgC_s_pre = mean(CH4_flux_mgC_s, na.rm = TRUE),
@@ -122,18 +124,20 @@ fluxdata %>%
   fd_preinjection
 
 # Do a bunch of QC plots check pre- versus postinjection fluxes
-p <- qplot(as.numeric(DWP_core), CO2_flux_mgC_s_pre, data = fd_preinjection)
+p <- qplot(as.numeric(DWP_core), CO2_flux_mgC_s_pre, color = Site, data = fd_preinjection)
 p <- p + geom_text(aes(label = DWP_core), size = 4, vjust = -0.5, hjust = -0.5)
 p <- p + ggtitle("Pre-injection CO2 flux rates by core")
 p <- p + geom_errorbar(aes(ymin = CO2_flux_mgC_s_pre - CO2_flux_mgC_s_presd,
                            ymax = CO2_flux_mgC_s_pre + CO2_flux_mgC_s_presd))
+p <- p + theme(legend.position=c(.75, .75))
 print(p)
 save_plot("QC_CO2_preinjection")
-p <- qplot(as.numeric(DWP_core), CH4_flux_mgC_s_pre, data = fd_preinjection)
+p <- qplot(as.numeric(DWP_core), CH4_flux_mgC_s_pre, color = Site, data = fd_preinjection)
 p <- p + geom_text(aes(label = DWP_core), size = 4, vjust = -0.5, hjust = -0.5)
 p <- p + ggtitle("Pre-injection CH4 flux rates by core")
 p <- p + geom_errorbar(aes(ymin = CH4_flux_mgC_s_pre - CH4_flux_mgC_s_presd,
                            ymax = CH4_flux_mgC_s_pre + CH4_flux_mgC_s_presd))
+p <- p + theme(legend.position=c(.75, .75))
 print(p)
 save_plot("QC_CH4_preinjection")
 
@@ -193,19 +197,38 @@ fluxdata %>%
 # ----------------------------------------------------------------------
 # December 4, 2015: Some cores are exhibiting wacky pre-injection fluxes.
 # Remove them for now (until we decide what to do; see issue #12) TODO
-fd_preinjection[fd_preinjection$DWP_core == 16, "CH4_flux_mgC_s_pre"] <- NA
-fd_preinjection[fd_preinjection$DWP_core == 35, "CH4_flux_mgC_s_pre"] <- NA
-fd_preinjection[fd_preinjection$DWP_core == 9, "CH4_flux_mgC_s_pre"] <- NA
-fd_preinjection[fd_preinjection$DWP_core == 4, "CO2_flux_mgC_s_pre"] <- NA
-fd_preinjection[fd_preinjection$DWP_core == 7, "CO2_flux_mgC_s_pre"] <- NA
-fd_preinjection[fd_preinjection$DWP_core == 9, "CO2_flux_mgC_s_pre"] <- NA
+# fd_preinjection[fd_preinjection$DWP_core == 16, "CH4_flux_mgC_s_pre"] <- NA
+# fd_preinjection[fd_preinjection$DWP_core == 35, "CH4_flux_mgC_s_pre"] <- NA
+# fd_preinjection[fd_preinjection$DWP_core == 9, "CH4_flux_mgC_s_pre"] <- NA
+# fd_preinjection[fd_preinjection$DWP_core == 4, "CO2_flux_mgC_s_pre"] <- NA
+# fd_preinjection[fd_preinjection$DWP_core == 7, "CO2_flux_mgC_s_pre"] <- NA
+# fd_preinjection[fd_preinjection$DWP_core == 9, "CO2_flux_mgC_s_pre"] <- NA
 
 # Merge the preinjection means back into main data
-fluxdata <- left_join(fluxdata, fd_preinjection, by=c("Rep", "DWP_core"))
+fluxdata <- left_join(fluxdata, fd_preinjection, by=c("Site", "Rep", "DWP_core"))
 print_dims(fluxdata)
 
 # Just remove 4, 7, 9 entirely for now; see issue #12 (TODO)
-fluxdata <- filter(fluxdata, !(DWP_core %in% c(2, 4, 7, 9, 51)))
+#fluxdata <- filter(fluxdata, !(DWP_core %in% c(2, 4, 7, 9, 51)))
+
+# Some more diagnostics plots: preinjection mean versus post injection fluxes
+fluxdata %>%
+  group_by(DWP_core, Site) %>%
+  summarise(CO2_flux_mgC_s_pre = mean(CO2_flux_mgC_s_pre, na.rm = TRUE),
+            CH4_flux_mgC_s_pre = mean(CH4_flux_mgC_s_pre, na.rm = TRUE),
+            CO2_flux_mgC_s = max(CO2_flux_mgC_s, na.rm = TRUE), 
+            CH4_flux_mgC_s = max(CH4_flux_mgC_s, na.rm = TRUE)) ->
+  maxfluxes
+p <- qplot(CO2_flux_mgC_s_pre, CO2_flux_mgC_s, data=subset(fluxdata, ELAPSED_TIME_s > 0), color = Site, log = "xy")
+p <- p + geom_label(data=maxfluxes, aes(label=DWP_core))
+p <- p + xlab("Pre-injection CO2 flux mean (mgC/s)") + ylab("Post-injection CO2 fluxes (mgC/s)")
+print(p)
+save_plot("CO2_prepost")
+p <- qplot(CH4_flux_mgC_s_pre, CH4_flux_mgC_s, data=subset(fluxdata, ELAPSED_TIME_s > 0), color = Site, log = "xy")
+p <- p + geom_label(data=maxfluxes, aes(label=DWP_core))
+p <- p + xlab("Pre-injection CH4 flux mean (mgC/s)") + ylab("Post-injection CH4 fluxes (mgC/s)")
+print(p)
+save_plot("CH4_prepost")
 
 
 # ----------------------------------------------------------------------
